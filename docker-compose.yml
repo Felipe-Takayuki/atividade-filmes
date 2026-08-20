@@ -10,11 +10,11 @@ services:
       - "${PORT:-3000}:3000"
     environment:
       - PORT=3000
-      - DB_HOST=mariadb
-      - DB_PORT=3306
-      - DB_USER=aluno
-      - DB_PASSWORD=alunosenha
-      - DB_NAME=catalogo_filmes
+      - DB_HOST=${DB_HOST:-mariadb}
+      - DB_PORT=${DB_PORT:-3306}
+      - DB_USER=${DB_USER:-aluno}
+      - DB_PASSWORD=${DB_PASSWORD:-alunosenha}
+      - DB_NAME=${DB_NAME:-catalogo_filmes}
       - TMDB_API_KEY=${TMDB_API_KEY}
       - JWT_SECRET=${JWT_SECRET:-chave_jwt_secreta_local_dev}
     depends_on:
