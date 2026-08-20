@@ -5,7 +5,6 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: catalogo_tom_hanks_app
     ports:
       - "${PORT:-3000}:3000"
     environment:
@@ -23,14 +22,13 @@ services:
 
   mariadb:
     image: mariadb:10.11
-    container_name: catalogo_tom_hanks_db
     environment:
       - MYSQL_ROOT_PASSWORD=rootpassword
-      - MYSQL_DATABASE=catalogo_filmes
-      - MYSQL_USER=aluno
-      - MYSQL_PASSWORD=alunosenha
-    ports:
-      - "3306:3306"
+      - MYSQL_DATABASE=${DB_NAME:-catalogo_filmes}
+      - MYSQL_USER=${DB_USER:-aluno}
+      - MYSQL_PASSWORD=${DB_PASSWORD:-alunosenha}
+    expose:
+      - "3306"
     volumes:
       - mariadb_data:/var/lib/mysql
     restart: unless-stopped
