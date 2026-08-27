@@ -1,145 +1,143 @@
-import bcrypt from 'bcryptjs';
-import { pool } from '../config/db.js';
-import { generateToken } from '../middleware/auth.js';
+import dotenv from 'dotenv';
+
+dotenv.config();
+
+const AUTH_SERVICE_URL = (process.env.AUTH_SERVICE_URL || 'http://auth-service:4000').replace(/\/+$/, '');
 
 /**
- * Cadastro de novo usuário
+ * Função auxiliar para realizar chamadas HTTP internas para o microsserviço de autenticação.
  */
-export async function register(req, res) {
+async function callAuthService(endpoint, options = {}) {
+  const url = `${AUTH_SERVICE_URL}${endpoint}`;
   try {
-    const { nome, email, senha } = req.body;
+    const response = await fetch(url, {
+      ...options,
+      headers: {
+        'Content-Type': 'application/json',
+        ...(options.headers || {})
+      }
+    });
 
-    if (!nome || !email || !senha) {
-      return res.status(400).json({ error: 'Todos os campos são obrigatórios (nome, email, senha).' });
-    }
-
-    if (senha.length < 4) {
-      return res.status(400).json({ error: 'A senha deve conter no mínimo 4 caracteres.' });
-    }
-
-    const emailNorm = email.trim().toLowerCase();
-
-    // Verifica se o email já existe
-    const [existing] = await pool.query('SELECT id FROM usuarios WHERE email = ?', [emailNorm]);
-    if (existing.length > 0) {
-      return res.status(409).json({ error: 'Este e-mail já está cadastrado.' });
-    }
-
-    // Hash da senha
-    const saltRounds = 10;
-    const senha_hash = await bcrypt.hash(senha, saltRounds);
-
-    // Insere novo usuário
-    const [result] = await pool.query(
-      'INSERT INTO usuarios (nome, email, senha_hash) VALUES (?, ?, ?)',
-      [nome.trim(), emailNorm, senha_hash]
-    );
-
-    const user = {
-      id: result.insertId,
-      nome: nome.trim(),
-      email: emailNorm
+    const data = await response.json().catch(() => ({}));
+    return {
+      status: response.status,
+      ok: response.ok,
+      data
     };
-
-    const token = generateToken(user);
-
-    // Define cookie seguro
-    res.cookie('token', token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: 7 * 24 * 60 * 60 * 1000 // 7 dias
-    });
-
-    return res.status(201).json({
-      success: true,
-      message: 'Usuário cadastrado com sucesso.',
-      user,
-      token
-    });
   } catch (err) {
-    console.error('[Auth] Erro no cadastro:', err);
-    return res.status(500).json({ error: 'Erro interno ao realizar cadastro.' });
+    console.error(`[Catálogo -> Auth-Service] Falha na comunicação com ${url}:`, err.message);
+    return {
+      status: 503,
+      ok: false,
+      data: { error: 'Serviço de autenticação indisponível no momento. Tente novamente em instantes.' }
+    };
   }
 }
 
 /**
- * Login de usuário
+ * Encaminha cadastro para o microsserviço de autenticação
  */
-export async function login(req, res) {
-  try {
-    const { email, senha } = req.body;
+export async function register(req, res) {
+  const { status, ok, data } = await callAuthService('/register', {
+    method: 'POST',
+    body: JSON.stringify(req.body)
+  });
 
-    if (!email || !senha) {
-      return res.status(400).json({ error: 'E-mail e senha são obrigatórios.' });
-    }
-
-    const emailNorm = email.trim().toLowerCase();
-
-    const [rows] = await pool.query(
-      'SELECT id, nome, email, senha_hash FROM usuarios WHERE email = ?',
-      [emailNorm]
-    );
-
-    if (rows.length === 0) {
-      return res.status(401).json({ error: 'Credenciais inválidas. E-mail ou senha incorretos.' });
-    }
-
-    const userRecord = rows[0];
-    const senhaValida = await bcrypt.compare(senha, userRecord.senha_hash);
-
-    if (!senhaValida) {
-      return res.status(401).json({ error: 'Credenciais inválidas. E-mail ou senha incorretos.' });
-    }
-
-    const user = {
-      id: userRecord.id,
-      nome: userRecord.nome,
-      email: userRecord.email
-    };
-
-    const token = generateToken(user);
-
-    res.cookie('token', token, {
+  if (ok && data.token) {
+    res.cookie('token', data.token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
       maxAge: 7 * 24 * 60 * 60 * 1000
     });
-
-    return res.json({
-      success: true,
-      message: 'Login realizado com sucesso.',
-      user,
-      token
-    });
-  } catch (err) {
-    console.error('[Auth] Erro no login:', err);
-    return res.status(500).json({ error: 'Erro interno ao realizar login.' });
   }
+
+  return res.status(status).json(data);
 }
 
 /**
- * Retorna dados do usuário atualmente autenticado
+ * Encaminha login para o microsserviço de autenticação
+ */
+export async function login(req, res) {
+  const { status, ok, data } = await callAuthService('/login', {
+    method: 'POST',
+    body: JSON.stringify(req.body)
+  });
+
+  if (ok && data.token) {
+    res.cookie('token', data.token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 7 * 24 * 60 * 60 * 1000
+    });
+  }
+
+  return res.status(status).json(data);
+}
+
+/**
+ * Encaminha consulta do perfil (/me) para o microsserviço
  */
 export async function me(req, res) {
-  try {
-    const [rows] = await pool.query(
-      'SELECT id, nome, email, criado_em FROM usuarios WHERE id = ?',
-      [req.user.id]
-    );
+  const authHeader = req.headers.authorization || (req.cookies?.token ? `Bearer ${req.cookies.token}` : '');
 
-    if (rows.length === 0) {
-      return res.status(404).json({ error: 'Usuário não encontrado.' });
+  const { status, data } = await callAuthService('/me', {
+    method: 'GET',
+    headers: {
+      'Authorization': authHeader
     }
+  });
 
-    return res.json({
-      user: rows[0]
-    });
-  } catch (err) {
-    console.error('[Auth] Erro ao consultar perfil:', err);
-    return res.status(500).json({ error: 'Erro interno ao consultar perfil.' });
-  }
+  return res.status(status).json(data);
+}
+
+/**
+ * Encaminha solicitação de recuperação de senha (esqueci minha senha)
+ */
+export async function forgotPassword(req, res) {
+  const { status, data } = await callAuthService('/forgot-password', {
+    method: 'POST',
+    body: JSON.stringify(req.body)
+  });
+
+  return res.status(status).json(data);
+}
+
+/**
+ * Encaminha verificação prévia do token de recuperação
+ */
+export async function verifyResetToken(req, res) {
+  const { token } = req.params;
+  const { status, data } = await callAuthService(`/verify-reset-token/${encodeURIComponent(token)}`, {
+    method: 'GET'
+  });
+
+  return res.status(status).json(data);
+}
+
+/**
+ * Encaminha redefinição da senha
+ */
+export async function resetPassword(req, res) {
+  const { status, data } = await callAuthService('/reset-password', {
+    method: 'POST',
+    body: JSON.stringify(req.body)
+  });
+
+  return res.status(status).json(data);
+}
+
+/**
+ * Consulta papel de um usuário pelo ID diretamente no microsserviço
+ */
+export async function getUserRole(req, res) {
+  const { id } = req.params;
+  const { status, data } = await callAuthService(`/users/${id}/role`, {
+    method: 'GET'
+  });
+
+  return res.status(status).json(data);
 }
 
 /**

@@ -6,8 +6,8 @@ dotenv.config();
 const dbConfig = {
   host: process.env.DB_HOST || 'localhost',
   port: parseInt(process.env.DB_PORT || '3306', 10),
-  user: process.env.DB_USER || 'root',
-  password: process.env.DB_PASSWORD || '',
+  user: process.env.DB_USER || 'aluno',
+  password: process.env.DB_PASSWORD || 'alunosenha',
   database: process.env.DB_NAME || 'catalogo_filmes',
   waitForConnections: true,
   connectionLimit: 10,
@@ -18,28 +18,29 @@ const dbConfig = {
 export const pool = mysql.createPool(dbConfig);
 
 /**
- * Inicializa as tabelas do MariaDB conforme os requisitos da atividade.
+ * Inicializa as tabelas de favoritos e comentários no MariaDB.
  */
 export async function initDatabase(retries = 5, delayMs = 3000) {
   for (let attempt = 1; attempt <= retries; attempt++) {
     try {
-      console.log(`[DB] Conectando ao MariaDB em ${dbConfig.host}:${dbConfig.port}... (tentativa ${attempt}/${retries})`);
+      console.log(`[Catálogo-DB] Conectando ao MariaDB em ${dbConfig.host}:${dbConfig.port}... (tentativa ${attempt}/${retries})`);
       const connection = await pool.getConnection();
 
-      console.log('[DB] Conexão estabelecida com sucesso. Verificando e criando tabelas...');
+      console.log('[Catálogo-DB] Conexão estabelecida com sucesso. Verificando tabelas...');
 
-      // Tabela de Usuários
+      // Garante que a tabela de usuários base existe para manter a integridade referencial das Foreign Keys
       await connection.query(`
         CREATE TABLE IF NOT EXISTS usuarios (
           id INT AUTO_INCREMENT PRIMARY KEY,
           nome VARCHAR(100) NOT NULL,
           email VARCHAR(150) UNIQUE NOT NULL,
           senha_hash VARCHAR(255) NOT NULL,
+          role VARCHAR(50) NOT NULL DEFAULT 'usuario',
           criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
       `);
 
-      // Tabela de Favoritos (com chave única para impedir favoritar 2x o mesmo filme)
+      // Tabela de Favoritos
       await connection.query(`
         CREATE TABLE IF NOT EXISTS favoritos (
           id INT AUTO_INCREMENT PRIMARY KEY,
@@ -66,15 +67,15 @@ export async function initDatabase(retries = 5, delayMs = 3000) {
       `);
 
       connection.release();
-      console.log('[DB] Tabelas verificadas e inicializadas com sucesso.');
+      console.log('[Catálogo-DB] Tabelas verificadas e inicializadas com sucesso.');
       return true;
     } catch (err) {
-      console.error(`[DB] Erro ao conectar ao banco (tentativa ${attempt}/${retries}):`, err.message);
+      console.error(`[Catálogo-DB] Erro ao conectar ao banco (tentativa ${attempt}/${retries}):`, err.message);
       if (attempt < retries) {
-        console.log(`[DB] Aguardando ${delayMs / 1000}s antes da próxima tentativa...`);
+        console.log(`[Catálogo-DB] Aguardando ${delayMs / 1000}s antes da próxima tentativa...`);
         await new Promise((res) => setTimeout(res, delayMs));
       } else {
-        console.error('[DB] Falha crítica ao conectar com o MariaDB após várias tentativas.');
+        console.error('[Catálogo-DB] Falha ao conectar com o MariaDB após várias tentativas.');
         return false;
       }
     }

@@ -3,7 +3,7 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
-const JWT_SECRET = process.env.JWT_SECRET || 'chave_secreta_padrao_catalogo_filmes_2026';
+const JWT_SECRET = process.env.JWT_SECRET || 'chave_jwt_secreta_local_dev';
 
 /**
  * Middleware para verificar o token JWT e injetar o usuário autenticado na requisição.
@@ -33,7 +33,8 @@ export function authenticate(req, res, next) {
     req.user = {
       id: decoded.id,
       email: decoded.email,
-      nome: decoded.nome
+      nome: decoded.nome,
+      role: decoded.role || 'usuario'
     };
     next();
   } catch (err) {
@@ -44,6 +45,20 @@ export function authenticate(req, res, next) {
 }
 
 /**
+ * Middleware opcional para restringir rotas por papel de usuário (ex: admin)
+ */
+export function requireRole(requiredRole) {
+  return (req, res, next) => {
+    if (!req.user || req.user.role !== requiredRole) {
+      return res.status(403).json({
+        error: `Acesso proibido. Esta ação requer permissão de ${requiredRole}.`
+      });
+    }
+    next();
+  };
+}
+
+/**
  * Gera um token JWT para o usuário.
  */
 export function generateToken(user) {
@@ -51,7 +66,8 @@ export function generateToken(user) {
     {
       id: user.id,
       email: user.email,
-      nome: user.nome
+      nome: user.nome,
+      role: user.role || 'usuario'
     },
     JWT_SECRET,
     { expiresIn: '7d' }
