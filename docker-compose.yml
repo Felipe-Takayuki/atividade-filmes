@@ -1,7 +1,14 @@
 version: '3.8'
 
+# ==============================================================================
+# ISW055 - Atividade 3: Microsserviço de Autenticação (Serviços Desacoplados)
+# Arquitetura: 2 containers + MariaDB em rede interna isolada
+# Ponto de entrada público: APENAS o container do catálogo (porta 3000)
+# ==============================================================================
+
 services:
-  app:
+  # 1. Container do Catálogo (Frontend SPA + Backend Proxy/Filmes) - Único com porta pública
+  catalogo:
     build:
       context: .
       dockerfile: Dockerfile
@@ -9,6 +16,7 @@ services:
       - "${PORT:-3000}:3000"
     environment:
       - PORT=3000
+      - AUTH_SERVICE_URL=http://auth-service:4000
       - DB_HOST=${DB_HOST:-mariadb}
       - DB_PORT=${DB_PORT:-3306}
       - DB_USER=${DB_USER:-aluno}
@@ -18,8 +26,40 @@ services:
       - JWT_SECRET=${JWT_SECRET:-chave_jwt_secreta_local_dev}
     depends_on:
       - mariadb
+      - auth-service
+    networks:
+      - app-network
     restart: unless-stopped
 
+  # 2. Microsserviço de Autenticação (Login, Cadastro, Roles e Esqueci Senha)
+  # ATENÇÃO: Sem 'ports' publicado pro host - acessível APENAS via rede Docker interna
+  auth-service:
+    build:
+      context: ./auth-service
+      dockerfile: Dockerfile
+    expose:
+      - "4000"
+    environment:
+      - PORT=4000
+      - DB_HOST=${DB_HOST:-mariadb}
+      - DB_PORT=${DB_PORT:-3306}
+      - DB_USER=${DB_USER:-aluno}
+      - DB_PASSWORD=${DB_PASSWORD:-alunosenha}
+      - DB_NAME=${DB_NAME:-catalogo_filmes}
+      - JWT_SECRET=${JWT_SECRET:-chave_jwt_secreta_local_dev}
+      - APP_URL=${APP_URL:-http://localhost:3000}
+      - SMTP_HOST=${SMTP_HOST:-sandbox.smtp.mailtrap.io}
+      - SMTP_PORT=${SMTP_PORT:-2525}
+      - SMTP_USER=${SMTP_USER:-}
+      - SMTP_PASS=${SMTP_PASS:-}
+      - SMTP_FROM=${SMTP_FROM:-Catálogo Filmes <noreply@catalogofilmes.local>}
+    depends_on:
+      - mariadb
+    networks:
+      - app-network
+    restart: unless-stopped
+
+  # 3. Banco de Dados Relacional MariaDB (Acessível apenas internamente)
   mariadb:
     image: mariadb:10.11
     environment:
@@ -31,7 +71,13 @@ services:
       - "3306"
     volumes:
       - mariadb_data:/var/lib/mysql
+    networks:
+      - app-network
     restart: unless-stopped
+
+networks:
+  app-network:
+    driver: bridge
 
 volumes:
   mariadb_data:
