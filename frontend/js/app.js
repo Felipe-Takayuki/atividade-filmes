@@ -199,8 +199,9 @@ function renderCatalog() {
       ? `<div class="movie-character">🎭 ${escapeHtml(movie.character)}</div>`
       : '';
 
+    const favIcon = movie.is_favorite ? '⭐' : '☆';
+    const favLabel = movie.is_favorite ? 'Favorito' : 'Favoritar';
     const favButtonClass = movie.is_favorite ? 'btn-action btn-fav is-favorite' : 'btn-action btn-fav';
-    const favButtonText = movie.is_favorite ? '⭐ Favorito' : '☆ Favoritar';
 
     card.innerHTML = `
       <div class="poster-container">
@@ -213,11 +214,14 @@ function renderCatalog() {
         ${characterText}
         <p class="movie-synopsis">${escapeHtml(movie.overview)}</p>
         <div class="movie-actions">
-          <button class="${favButtonClass}" data-action="toggle-fav" title="Favoritar este filme">
-            ${favButtonText}
+          <button class="${favButtonClass}" data-action="toggle-fav" title="${movie.is_favorite ? 'Remover dos favoritos' : 'Adicionar aos favoritos'}">
+            <span class="btn-icon">${favIcon}</span>
+            <span class="btn-text">${favLabel}</span>
           </button>
-          <button class="btn-action btn-comments" data-action="open-comments" title="Ver ou adicionar comentários">
-            💬 Notas <span class="badge comments-badge">${movie.comments_count || 0}</span>
+          <button class="btn-action btn-comments" data-action="open-comments" title="Ver ou adicionar anotações">
+            <span class="btn-icon">💬</span>
+            <span class="btn-text">Notas</span>
+            <span class="badge comments-badge">${movie.comments_count || 0}</span>
           </button>
         </div>
       </div>
@@ -351,8 +355,8 @@ function renderModalComments(comments) {
         <p class="comment-text">${escapeHtml(comment.texto)}</p>
         <div class="comment-date">📅 ${formatDate(comment.criado_em)}</div>
       </div>
-      <button class="btn-delete-comment" title="Excluir este comentário" data-comment-id="${comment.id}">
-        🗑️
+      <button class="btn-delete-comment" title="Excluir este comentário" data-comment-id="${comment.id}" aria-label="Excluir comentário">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
       </button>
     `;
 

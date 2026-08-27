@@ -17,6 +17,7 @@ const btnLogout = document.getElementById('btn-logout');
 const authTabs = document.getElementById('auth-tabs');
 const tabLogin = document.getElementById('tab-login');
 const tabRegister = document.getElementById('tab-register');
+const tabForgot = document.getElementById('tab-forgot');
 const formLogin = document.getElementById('form-login');
 const formRegister = document.getElementById('form-register');
 const formForgot = document.getElementById('form-forgot');
@@ -70,18 +71,22 @@ export function switchTab(activeTab) {
   formForgot.classList.add('hidden');
   formReset.classList.add('hidden');
 
+  // Atualiza classes ativas nas abas
+  tabLogin?.classList.remove('active');
+  tabRegister?.classList.remove('active');
+  tabForgot?.classList.remove('active');
+
   if (activeTab === 'login') {
     authTabs.classList.remove('hidden');
-    tabLogin.classList.add('active');
-    tabRegister.classList.remove('active');
+    tabLogin?.classList.add('active');
     formLogin.classList.remove('hidden');
   } else if (activeTab === 'register') {
     authTabs.classList.remove('hidden');
-    tabRegister.classList.add('active');
-    tabLogin.classList.remove('active');
+    tabRegister?.classList.add('active');
     formRegister.classList.remove('hidden');
   } else if (activeTab === 'forgot') {
-    authTabs.classList.add('hidden');
+    authTabs.classList.remove('hidden');
+    tabForgot?.classList.add('active');
     formForgot.classList.remove('hidden');
   } else if (activeTab === 'reset') {
     authTabs.classList.add('hidden');
@@ -302,6 +307,7 @@ async function checkUrlResetToken() {
 // Event Listeners
 tabLogin?.addEventListener('click', () => switchTab('login'));
 tabRegister?.addEventListener('click', () => switchTab('register'));
+tabForgot?.addEventListener('click', () => switchTab('forgot'));
 btnToForgot?.addEventListener('click', () => switchTab('forgot'));
 btnForgotToLogin?.addEventListener('click', () => switchTab('login'));
 btnResetToLogin?.addEventListener('click', () => switchTab('login'));
