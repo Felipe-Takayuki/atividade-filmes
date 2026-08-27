@@ -106,7 +106,7 @@ async function startServer() {
   console.log('==============================================');
   console.log('🎬 Catálogo de Filmes Tom Hanks - Servidor Principal');
   console.log('==============================================');
-  console.log(`🔗 Conectado ao Auth Service em: ${AUTH_SERVICE_URL}`);
+  console.log(`🔗 Conectado ao Serviço de Troca de Senha (auth-service) em: ${AUTH_SERVICE_URL}`);
 
   // Inicializa tabelas
   await initDatabase();

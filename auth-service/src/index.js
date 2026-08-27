@@ -34,7 +34,7 @@ app.get('/health', async (req, res) => {
   const smtpConfigured = Boolean(process.env.SMTP_USER && process.env.SMTP_PASS);
 
   res.json({
-    service: 'auth-service',
+    service: 'auth-service (password-reset)',
     status: 'ok',
     timestamp: new Date().toISOString(),
     database: dbStatus,
@@ -46,35 +46,35 @@ app.get('/health', async (req, res) => {
   });
 });
 
-// Rotas do microsserviço de autenticação
+// Rotas do microsserviço de troca/recuperação de senha
 // Mapeadas tanto na raiz quanto com prefixo /api/auth para facilidade de proxy
 app.use('/api/auth', authRoutes);
 app.use('/', authRoutes);
 
 // Tratamento de rotas inexistentes
 app.use((req, res) => {
-  res.status(404).json({ error: 'Endpoint não encontrado no microsserviço de autenticação.' });
+  res.status(404).json({ error: 'Endpoint não encontrado no microsserviço de troca de senha.' });
 });
 
 // Tratamento global de erros
 app.use((err, req, res, next) => {
-  console.error('[Auth-Service Error]', err);
+  console.error('[Password-Reset-Service Error]', err);
   res.status(err.status || 500).json({
-    error: err.message || 'Erro interno no microsserviço de autenticação.'
+    error: err.message || 'Erro interno no microsserviço de troca de senha.'
   });
 });
 
 // Inicialização do servidor
 async function startServer() {
   console.log('==============================================');
-  console.log('🔐 Microsserviço de Autenticação (auth-service)');
+  console.log('🔑 Microsserviço de Troca de Senha (auth-service)');
   console.log('==============================================');
 
   // Inicializa o banco de dados MariaDB (tabelas usuarios e reset_tokens)
   await initDatabase();
 
   app.listen(PORT, '0.0.0.0', () => {
-    console.log(`🚀 Auth Service rodando na porta interna ${PORT}`);
+    console.log(`🚀 Serviço de Troca de Senha rodando na porta interna ${PORT}`);
     console.log(`🔒 Comunicação estrita via rede interna do Docker (sem porta exposta pro host)`);
   });
 }

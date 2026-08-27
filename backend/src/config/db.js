@@ -40,6 +40,21 @@ export async function initDatabase(retries = 5, delayMs = 3000) {
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
       `);
 
+      // Garante que a coluna 'role' existe caso a tabela tenha sido criada em versão anterior
+      try {
+        const [columns] = await connection.query(`
+          SHOW COLUMNS FROM usuarios LIKE 'role';
+        `);
+        if (columns.length === 0) {
+          console.log('[Catálogo-DB] Adicionando coluna "role" na tabela usuarios...');
+          await connection.query(`
+            ALTER TABLE usuarios ADD COLUMN role VARCHAR(50) NOT NULL DEFAULT 'usuario' AFTER senha_hash;
+          `);
+        }
+      } catch (colErr) {
+        console.warn('[Catálogo-DB] Verificação da coluna role:', colErr.message);
+      }
+
       // Tabela de Favoritos
       await connection.query(`
         CREATE TABLE IF NOT EXISTS favoritos (

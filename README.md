@@ -7,17 +7,23 @@
 
 ## 📌 Visão Geral da Atividade 3
 
-Nesta atividade, a arquitetura da **Atividade 2 (monólito)** foi evoluída para uma **arquitetura de microsserviços desacoplados**. Toda a responsabilidade de autenticação e gestão de usuários foi extraída para um serviço independente (`auth-service`), mantendo o catálogo de filmes focado exclusivamente no domínio de filmes, favoritos e comentários.
+Nesta atividade, a arquitetura da **Atividade 2 (monólito)** foi evoluída para uma **arquitetura de microsserviços desacoplados**. A autenticação principal de usuários (login, cadastro, JWT e sessões) permanece no **`backend`**, enquanto o fluxo especializado de **recuperação e troca de senha** foi desacoplado em um microsserviço independente (`auth-service`), isolado na rede interna e com integração SMTP.
 
-### ✨ Principais Mudanças e Novas Funcionalidades
-1. **Desacoplamento de Autenticação**: Criação do container `auth-service`, isolado na rede interna do Docker.
-2. **Segurança de Rede**: O serviço de autenticação **não possui portas publicadas para o host**, sendo acessível unicamente pelo backend do catálogo através da rede interna do Docker.
-3. **Papéis de Usuário (Roles)**: Suporte nativo a perfis diferenciados (`usuario` e `admin`), com capacidade do `auth-service` responder a consultas de papel de usuário (`GET /users/:id/role`).
-4. **Recuperação de Senha Real (Esqueci Minha Senha)**:
-   - Geração de tokens criptográficos aleatórios únicos de 32 bytes (64 caracteres hexadecimais).
-   - Registro na tabela `reset_tokens` com controle de expiração estrita de **30 minutos** (`expira_em`) e flag de uso único (`usado`).
-   - Envio de e-mail transacional real via **Mailtrap** (ambiente de desenvolvimento) e suporte a **Brevo** (produção).
-5. **Validação Rigorosa em 3 Etapas**:
+### ✨ Principais Mudanças e Divisão de Responsabilidades
+1. **Autenticação no Backend (`backend`)**:
+   - Cadastro (`/api/auth/register`) e Login (`/api/auth/login`).
+   - Gestão de tokens JWT, cookies seguros e dados de sessão (`/api/auth/me`).
+   - Suporte a papéis de usuário diferenciados (`usuario` e `admin`).
+   - Domínio do Catálogo: consumo TMDB, favoritos e comentários com controle de permissões.
+
+2. **Microsserviço de Troca de Senha (`auth-service`)**:
+   - Serviço isolado na rede interna Docker (**sem porta publicada pro host**).
+   - Geração de tokens criptográficos aleatórios de 32 bytes (64 caracteres hex).
+   - Tabela `reset_tokens` com controle de expiração estrita de **30 minutos** (`expira_em`) e flag de uso único (`usado`).
+   - Envio de e-mail transacional real via **Mailtrap** (desenvolvimento) e suporte a **Brevo** (produção).
+   - Validação e redefinição segura de senha com hash `bcrypt`.
+
+3. **Validação Rigorosa em 3 Etapas**:
    - **Regra 1**: O token existe no banco de dados?
    - **Regra 2**: Ainda não foi utilizado (`usado = false`)?
    - **Regra 3**: Ainda não expirou (`agora <= expira_em`, validade de 30 min)?
@@ -32,12 +38,12 @@ Nesta atividade, a arquitetura da **Atividade 2 (monólito)** foi evoluída para
                        |                        (app-network)                        |
                        |                                                             |
 +-----------------+    |   +-----------------------+     +-----------------------+   |
-| Navegador Web   |    |   |                       |     |                       |   |
-| (Usuário Final) |=======>|       Catálogo        |====>|     auth-service      |   |
+| Navegador Web   |    |   |  Catálogo + Backend   |     |     auth-service      |   |
+| (Usuário Final) |=======>| (Autenticação + TMDB) |====>|   (Troca de Senha)    |   |
 |                 |HTTPS   | (Único Ponto Público) |     |  (Sem Porta Exposta)  |   |
-+-----------------+    |   |     (Porta 3000)      |     |     (Porta 4000)      |   |
-        ^              |   +-----------------------+     +-----------------------+   |
-        |              |               |                             |               |
+|                 |        |     (Porta 3000)      |     |     (Porta 4000)      |   |
++-----------------+    |   +-----------------------+     +-----------------------+   |
+        ^              |               |                             |               |
         |              +---------------|-----------------------------|---------------+
         |                              |                             |
         |                              v                             v
@@ -61,10 +67,10 @@ Nesta atividade, a arquitetura da **Atividade 2 (monólito)** foi evoluída para
 |---|---|---|
 | **Containers** | 1 container de aplicação + MariaDB | **2 containers de aplicação** (`catalogo` e `auth-service`) + MariaDB |
 | **Ponto de Entrada** | Porta pública para toda a aplicação | **Apenas o Catálogo** expõe porta pública |
-| **Autenticação** | Código acoplado no mesmo backend | **Microsserviço independente** (`auth-service`) |
-| **Comunicação de Auth** | Chamadas diretas de função | **Chamadas HTTP internas** via DNS Docker (`http://auth-service:4000`) |
+| **Autenticação** | Código acoplado no mesmo backend | **Backend** gerencia autenticação e sessões |
+| **Troca de Senha** | Não implementado | **Microsserviço independente** (`auth-service`) com SMTP e tokens temporizados |
 | **Papéis de Usuário** | Não diferenciados | **`usuario` e `admin`** |
-| **Recuperação de Senha** | Não implementado | **Envio real via Mailtrap com link temporizado de 30 min** |
+| **Comunicação Interna** | Chamadas locais diretas | **Chamadas HTTP internas** via DNS Docker (`http://auth-service:4000`) |
 
 ---
 
@@ -72,34 +78,32 @@ Nesta atividade, a arquitetura da **Atividade 2 (monólito)** foi evoluída para
 
 ```
 .
-├── auth-service/                     # 🔐 Microsserviço de Autenticação
+├── auth-service/                     # 🔑 Microsserviço de Troca de Senha
 │   ├── Dockerfile                    # Container isolado (sem porta pública pro host)
-│   ├── package.json                  # Dependências: express, mysql2, bcryptjs, jsonwebtoken, nodemailer
+│   ├── package.json                  # Dependências: express, mysql2, bcryptjs, nodemailer
 │   └── src/
 │       ├── config/
-│       │   └── db.js                 # Pool MariaDB e criação de tabelas (usuarios, reset_tokens)
+│       │   └── db.js                 # Pool MariaDB e criação da tabela reset_tokens
 │       ├── controllers/
-│       │   └── authController.js     # Lógica de Login, Cadastro, Roles e Esqueci Minha Senha
-│       ├── middleware/
-│       │   └── auth.js               # Assinatura e validação JWT
+│       │   └── authController.js     # Lógica de Troca de Senha (forgot, verify, reset)
 │       ├── routes/
-│       │   └── authRoutes.js         # Rotas /register, /login, /me, /forgot-password, etc.
+│       │   └── authRoutes.js         # Rotas /forgot-password, /verify-reset-token, /reset-password
 │       ├── services/
-│       │   └── emailService.js       # Envio de e-mail via Nodemailer (Mailtrap/Brevo)
+│       │   └── emailService.js       # Envio de e-mail transacional via Nodemailer (Mailtrap/Brevo)
 │       └── index.js                  # Ponto de entrada do auth-service (porta 4000 interna)
 │
-├── backend/                          # 🎬 Catálogo Backend (Proxy / Filmes / Favoritos / Comentários)
+├── backend/                          # 🎬 Backend do Catálogo (Autenticação, Proxy Troca de Senha, Filmes, Favoritos, Comentários)
 │   ├── package.json
 │   └── src/
 │       ├── config/
-│       │   └── db.js                 # Pool MariaDB para favoritos e comentários
+│       │   └── db.js                 # Pool MariaDB e tabelas usuarios, favoritos e comentarios
 │       ├── controllers/
-│       │   ├── authController.js     # Repassa requisições para o auth-service via HTTP interno
+│       │   ├── authController.js     # Autenticação direta (login/register/me) e delegação de troca de senha
 │       │   ├── commentController.js  # Anotações e comentários
 │       │   ├── favoriteController.js # Filmes favoritos
 │       │   └── movieController.js    # Consumo e cache TMDB
 │       ├── middleware/
-│       │   └── auth.js               # Verificação de sessão e papéis (roles)
+│       │   └── auth.js               # Assinatura e verificação JWT, verificação de papéis (roles)
 │       ├── routes/                   # authRoutes, movieRoutes, favoriteRoutes, commentRoutes
 │       ├── services/
 │       │   └── tmdbService.js        # Integração TMDB
@@ -209,7 +213,7 @@ volumes:
 
 ## 🗄️ Modelo do Banco de Dados
 
-### 1. Tabela `usuarios` (Gerenciada pelo `auth-service`)
+### 1. Tabela `usuarios` (Gerenciada pelo Backend / Catálogo)
 ```sql
 CREATE TABLE IF NOT EXISTS usuarios (
   id INT AUTO_INCREMENT PRIMARY KEY,
@@ -318,7 +322,7 @@ Crie seu arquivo `.env` baseado no `.env.example`:
 1. Acesse a tela inicial e selecione a aba **Criar Conta**.
 2. Preencha seu nome, e-mail, senha e escolha o papel (**Usuário Comum** ou **Administrador**).
 3. Ao entrar no catálogo, o badge de perfil no canto superior direito exibirá o papel correspondente (`usuario` ou `admin`).
-4. O microsserviço de autenticação responde a requisições internas em `GET /users/:id/role` informando o papel cadastrado.
+4. O backend responde às consultas e valida permissões pelo token JWT e endpoint `GET /api/auth/users/:id/role`.
 
 ---
 
