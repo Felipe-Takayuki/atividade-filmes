@@ -58,7 +58,7 @@ export const api = {
 
     const response = await fetch(`${API_BASE}${endpoint}`, config);
 
-    if (response.status === 401) {
+    if (response.status === 401 && !endpoint.includes('/auth/login') && !endpoint.includes('/auth/register') && !endpoint.includes('/auth/forgot-password') && !endpoint.includes('/auth/reset-password') && !endpoint.includes('/auth/verify-reset-token')) {
       this.clearSession();
       window.dispatchEvent(new CustomEvent('auth:unauthorized'));
     }
@@ -74,10 +74,10 @@ export const api = {
   },
 
   // ===== AUTH =====
-  async register(nome, email, senha) {
+  async register(nome, email, senha, role = 'usuario') {
     const data = await this.request('/auth/register', {
       method: 'POST',
-      body: JSON.stringify({ nome, email, senha })
+      body: JSON.stringify({ nome, email, senha, role })
     });
     if (data.token) {
       this.setToken(data.token);
@@ -110,6 +110,34 @@ export const api = {
     } finally {
       this.clearSession();
     }
+  },
+
+  // ===== ESQUECI MINHA SENHA / RESET TOKEN =====
+  async forgotPassword(email) {
+    return this.request('/auth/forgot-password', {
+      method: 'POST',
+      body: JSON.stringify({ email })
+    });
+  },
+
+  async verifyResetToken(token) {
+    return this.request(`/auth/verify-reset-token/${encodeURIComponent(token)}`, {
+      method: 'GET'
+    });
+  },
+
+  async resetPassword(token, novaSenha) {
+    return this.request('/auth/reset-password', {
+      method: 'POST',
+      body: JSON.stringify({
+        token,
+        nova_senha: novaSenha
+      })
+    });
+  },
+
+  async getUserRole(userId) {
+    return this.request(`/auth/users/${userId}/role`);
   },
 
   // ===== MOVIES =====

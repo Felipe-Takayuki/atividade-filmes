@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Catálogo de Filmes — Tom Hanks</title>
+  <title>Catálogo de Filmes — Tom Hanks (Microsserviços)</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Cinzel:wght@600;800&display=swap" rel="stylesheet">
@@ -19,7 +19,7 @@
         <span class="brand-icon">🎬</span>
         <div class="brand-text">
           <span class="brand-title">Tom Hanks</span>
-          <span class="brand-subtitle">Catálogo & Favoritos</span>
+          <span class="brand-subtitle">Catálogo & Microsserviço de Autenticação</span>
         </div>
       </div>
 
@@ -28,6 +28,7 @@
         <div class="user-badge">
           <span class="avatar-icon">👤</span>
           <span id="nav-user-name" class="user-name">Usuário</span>
+          <span id="nav-user-role" class="badge-role">usuario</span>
         </div>
         <button id="btn-logout" class="btn btn-outline-danger btn-sm" title="Sair da conta">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
@@ -37,41 +38,45 @@
     </div>
   </header>
 
-  <!-- ================= VIEW 1: AUTHENTICATION (LOGIN / CADASTRO) ================= -->
+  <!-- ================= VIEW 1: AUTHENTICATION ================= -->
   <section id="auth-view" class="view auth-section">
     <div class="container auth-container">
       <div class="auth-hero">
-        <div class="hero-badge">ISW055 · Computação em Nuvem</div>
+        <div class="hero-badge">ISW055 · Atividade 3 · Microsserviços</div>
         <h1 class="hero-title">Filmografia de <span class="text-gold">Tom Hanks</span></h1>
         <p class="hero-desc">
-          Acesse o catálogo completo com dados ao vivo da TMDB. Salve seus filmes favoritos e faça anotações pessoais com isolamento total por usuário.
+          Arquitetura desacoplada: autenticação isolada em microsserviço independente, catálogo TMDB em tempo real, controle de papéis (roles) e recuperação de senha com tokens de 30 minutos.
         </p>
         <div class="hero-features">
           <div class="feature-item">
-            <span class="feature-icon">✨</span>
-            <span>Dados e pôsteres oficiais em tempo real via TMDB</span>
+            <span class="feature-icon">🔐</span>
+            <span>Microsserviço de Login isolado na rede interna Docker</span>
           </div>
           <div class="feature-item">
-            <span class="feature-icon">🔒</span>
-            <span>Favoritos e comentários 100% isolados na sua conta</span>
+            <span class="feature-icon">👥</span>
+            <span>Suporte a papéis de usuário (<code>usuario</code> / <code>admin</code>)</span>
           </div>
           <div class="feature-item">
-            <span class="feature-icon">🗄️</span>
-            <span>Persistência individual no MariaDB da disciplina</span>
+            <span class="feature-icon">✉️</span>
+            <span>Recuperação de senha real com Mailtrap e expiração de 30 min</span>
+          </div>
+          <div class="feature-item">
+            <span class="feature-icon">🎬</span>
+            <span>Favoritos e anotações pessoais isolados por usuário</span>
           </div>
         </div>
       </div>
 
       <div class="auth-card">
-        <!-- Auth Tabs -->
-        <div class="auth-tabs">
+        <!-- Auth Tabs (Visíveis nos fluxos de Login e Registro) -->
+        <div id="auth-tabs" class="auth-tabs">
           <button id="tab-login" class="tab-btn active" data-tab="login">Entrar</button>
           <button id="tab-register" class="tab-btn" data-tab="register">Criar Conta</button>
         </div>
 
         <div id="auth-alert" class="alert hidden"></div>
 
-        <!-- Formulário de Login -->
+        <!-- 1. Formulário de Login -->
         <form id="form-login" class="auth-form">
           <div class="form-group">
             <label for="login-email">E-mail</label>
@@ -82,7 +87,10 @@
           </div>
 
           <div class="form-group">
-            <label for="login-senha">Senha</label>
+            <div class="form-label-row">
+              <label for="login-senha">Senha</label>
+              <button type="button" id="btn-to-forgot" class="btn-link">Esqueci minha senha</button>
+            </div>
             <div class="input-wrapper">
               <span class="input-icon">🔑</span>
               <input type="password" id="login-senha" class="form-control" placeholder="••••••••" required autocomplete="current-password">
@@ -94,7 +102,7 @@
           </button>
         </form>
 
-        <!-- Formulário de Registro -->
+        <!-- 2. Formulário de Registro -->
         <form id="form-register" class="auth-form hidden">
           <div class="form-group">
             <label for="register-nome">Nome Completo</label>
@@ -120,14 +128,85 @@
             </div>
           </div>
 
+          <div class="form-group">
+            <label for="register-role">Papel do Usuário (Role)</label>
+            <div class="input-wrapper">
+              <span class="input-icon">🛡️</span>
+              <select id="register-role" class="form-control">
+                <option value="usuario" selected>Usuário Comum (usuario)</option>
+                <option value="admin">Administrador (admin)</option>
+              </select>
+            </div>
+          </div>
+
           <button type="submit" id="btn-submit-register" class="btn btn-primary btn-block">
             <span>Criar Minha Conta</span>
           </button>
         </form>
 
+        <!-- 3. Formulário de Esqueci Minha Senha -->
+        <form id="form-forgot" class="auth-form hidden">
+          <div class="form-header-box">
+            <h3 class="form-box-title">Recuperar Senha</h3>
+            <p class="form-box-desc">
+              Informe seu e-mail cadastrado. Enviaremos um link de redefinição com validade de <strong>30 minutos</strong> via Mailtrap.
+            </p>
+          </div>
+
+          <div class="form-group">
+            <label for="forgot-email">Seu E-mail Cadastrado</label>
+            <div class="input-wrapper">
+              <span class="input-icon">✉️</span>
+              <input type="email" id="forgot-email" class="form-control" placeholder="seu.email@exemplo.com" required autocomplete="email">
+            </div>
+          </div>
+
+          <button type="submit" id="btn-submit-forgot" class="btn btn-primary btn-block">
+            <span>Enviar Link de Recuperação</span>
+          </button>
+
+          <div class="form-footer-action">
+            <button type="button" id="btn-forgot-to-login" class="btn-link">← Voltar para o Login</button>
+          </div>
+        </form>
+
+        <!-- 4. Formulário de Redefinir Senha (ao acessar o link do e-mail) -->
+        <form id="form-reset" class="auth-form hidden">
+          <div class="form-header-box">
+            <h3 class="form-box-title">Redefinir Senha</h3>
+            <p id="reset-account-info" class="form-box-desc">
+              Informe a nova senha para sua conta.
+            </p>
+          </div>
+
+          <div class="form-group">
+            <label for="reset-senha">Nova Senha</label>
+            <div class="input-wrapper">
+              <span class="input-icon">🔑</span>
+              <input type="password" id="reset-senha" class="form-control" placeholder="Mínimo 4 caracteres" required autocomplete="new-password">
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="reset-senha-confirm">Confirmar Nova Senha</label>
+            <div class="input-wrapper">
+              <span class="input-icon">🔒</span>
+              <input type="password" id="reset-senha-confirm" class="form-control" placeholder="Repita a nova senha" required autocomplete="new-password">
+            </div>
+          </div>
+
+          <button type="submit" id="btn-submit-reset" class="btn btn-primary btn-block">
+            <span>Salvar Nova Senha</span>
+          </button>
+
+          <div class="form-footer-action">
+            <button type="button" id="btn-reset-to-login" class="btn-link">← Voltar para o Login</button>
+          </div>
+        </form>
+
         <div class="auth-footer">
           <p class="text-muted text-center text-xs">
-            Isolamento de dados garantido por <code>usuario_id</code> no MariaDB.
+            Serviço de Autenticação isolado &bull; <code>auth-service</code> na rede interna Docker
           </p>
         </div>
       </div>
