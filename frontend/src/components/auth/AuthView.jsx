@@ -15,33 +15,13 @@ export function AuthView() {
         <div className="auth-hero">
           <div className="hero-badge">ISW055 · Atividade 3 · Microsserviços</div>
           <h1 className="hero-title">
-            Filmografia de <span className="text-gold">Tom Hanks</span>
+            Catálogo de filmes <span className="text-gold">Tom Hanks</span>
           </h1>
           <p className="hero-desc">
             Arquitetura desacoplada: autenticação isolada em microsserviço independente, catálogo TMDB
             em tempo real, controle de papéis (roles) e recuperação de senha com tokens de 30
             minutos.
           </p>
-          <div className="hero-features">
-            <div className="feature-item">
-              <span className="feature-icon">🔐</span>
-              <span>Microsserviço de Login isolado na rede interna Docker</span>
-            </div>
-            <div className="feature-item">
-              <span className="feature-icon">👥</span>
-              <span>
-                Suporte a papéis de usuário (<code>usuario</code> / <code>admin</code>)
-              </span>
-            </div>
-            <div className="feature-item">
-              <span className="feature-icon">✉️</span>
-              <span>Recuperação de senha real com Mailtrap e expiração de 30 min</span>
-            </div>
-            <div className="feature-item">
-              <span className="feature-icon">🎬</span>
-              <span>Favoritos e anotações pessoais isolados por usuário</span>
-            </div>
-          </div>
         </div>
 
         {/* Right Auth Card */}
