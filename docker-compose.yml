@@ -61,25 +61,7 @@ services:
       - app-network
     restart: unless-stopped
 
-  # 3. Banco de Dados Relacional MariaDB (Acessível apenas internamente)
-  mariadb:
-    image: mariadb:10.11
-    environment:
-      - MYSQL_ROOT_PASSWORD=rootpassword
-      - MYSQL_DATABASE=${DB_NAME:-catalogo_filmes}
-      - MYSQL_USER=${DB_USER:-aluno}
-      - MYSQL_PASSWORD=${DB_PASSWORD:-alunosenha}
-    expose:
-      - "3306"
-    volumes:
-      - mariadb_data:/var/lib/mysql
-    networks:
-      - app-network
-    restart: unless-stopped
-
 networks:
   app-network:
     driver: bridge
 
-volumes:
-  mariadb_data:
