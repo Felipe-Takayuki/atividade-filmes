@@ -262,6 +262,16 @@ async function handleLogout() {
   window.dispatchEvent(new CustomEvent('auth:logout'));
 }
 
+function escapeHtml(text) {
+  if (!text) return '';
+  return String(text)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
 // 6. Verificação do Token na URL ao carregar
 async function checkUrlResetToken() {
   let token = null;
@@ -288,7 +298,7 @@ async function checkUrlResetToken() {
     try {
       const result = await api.verifyResetToken(token);
       if (result.valid) {
-        resetAccountInfo.innerHTML = `Definindo nova senha para a conta: <strong>${result.email}</strong>`;
+        resetAccountInfo.innerHTML = `Definindo nova senha para a conta: <strong>${escapeHtml(result.email)}</strong>`;
         showAlert('Link verificado com sucesso! Digite sua nova senha abaixo.', 'success');
         btnSubmitReset.disabled = false;
       } else {
@@ -310,7 +320,11 @@ tabRegister?.addEventListener('click', () => switchTab('register'));
 tabForgot?.addEventListener('click', () => switchTab('forgot'));
 btnToForgot?.addEventListener('click', () => switchTab('forgot'));
 btnForgotToLogin?.addEventListener('click', () => switchTab('login'));
-btnResetToLogin?.addEventListener('click', () => switchTab('login'));
+btnResetToLogin?.addEventListener('click', () => {
+  history.replaceState(null, '', window.location.pathname);
+  currentResetToken = null;
+  switchTab('login');
+});
 
 formLogin?.addEventListener('submit', handleLogin);
 formRegister?.addEventListener('submit', handleRegister);

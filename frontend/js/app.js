@@ -184,7 +184,7 @@ function renderCatalog() {
     card.dataset.movieId = movie.id;
 
     const posterMarkup = movie.poster_url
-      ? `<img src="${movie.poster_url}" alt="${movie.title}" class="movie-poster" loading="lazy" onerror="this.parentElement.innerHTML='<div class=\\'poster-fallback\\'><span class=\\'poster-fallback-icon\\'>🎬</span><span>Sem pôster</span></div>'">`
+      ? `<img src="${movie.poster_url}" alt="${escapeHtml(movie.title)}" class="movie-poster" loading="lazy">`
       : `<div class="poster-fallback"><span class="poster-fallback-icon">🎬</span><span>Sem pôster</span></div>`;
 
     const ratingBadge = movie.vote_average > 0
@@ -226,6 +226,17 @@ function renderCatalog() {
         </div>
       </div>
     `;
+
+    // Fallback de imagem caso a URL do pôster falhe no carregamento
+    const posterImg = card.querySelector('.movie-poster');
+    if (posterImg) {
+      posterImg.addEventListener('error', () => {
+        const parent = posterImg.parentElement;
+        if (parent) {
+          parent.innerHTML = '<div class="poster-fallback"><span class="poster-fallback-icon">🎬</span><span>Sem pôster</span></div>';
+        }
+      });
+    }
 
     // Eventos nos botões do Card
     const btnFav = card.querySelector('[data-action="toggle-fav"]');
