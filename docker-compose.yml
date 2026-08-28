@@ -27,7 +27,6 @@ services:
       - TMDB_API_KEY=${TMDB_API_KEY}
       - JWT_SECRET=${JWT_SECRET:-chave_jwt_secreta_local_dev}
     depends_on:
-      - mariadb
       - auth-service
     networks:
       - app-network
@@ -55,8 +54,6 @@ services:
       - SMTP_USER=${SMTP_USER:-}
       - SMTP_PASS=${SMTP_PASS:-}
       - SMTP_FROM=${SMTP_FROM:-Catálogo Filmes <noreply@catalogofilmes.local>}
-    depends_on:
-      - mariadb
     networks:
       - app-network
     restart: unless-stopped
