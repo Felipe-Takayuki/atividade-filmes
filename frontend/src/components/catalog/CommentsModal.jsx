@@ -10,10 +10,13 @@ export function CommentsModal({ movie, onClose, onCommentsCountChange }) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
 
+  const movieId = movie?.id;
+
   const formatDate = (dateString) => {
     if (!dateString) return '';
     const date = new Date(dateString);
-    return date.toLocaleDateString('pt-BR', {
+    if (isNaN(date.getTime())) return String(dateString);
+    return date.toLocaleString('pt-BR', {
       day: '2-digit',
       month: '2-digit',
       year: 'numeric',
@@ -22,19 +25,20 @@ export function CommentsModal({ movie, onClose, onCommentsCountChange }) {
     });
   };
 
+  // Carrega comentários ao abrir o modal ou trocar de filme
   useEffect(() => {
-    if (!movie) return;
+    if (!movieId) return;
 
     let isMounted = true;
     async function fetchComments() {
       setLoading(true);
       setError(null);
       try {
-        const res = await api.getMovieComments(movie.id);
+        const res = await api.getMovieComments(movieId);
         if (isMounted) {
           const list = res.comments || [];
           setComments(list);
-          onCommentsCountChange?.(movie.id, list.length);
+          onCommentsCountChange?.(movieId, list.length);
         }
       } catch (err) {
         if (isMounted) {
@@ -49,35 +53,48 @@ export function CommentsModal({ movie, onClose, onCommentsCountChange }) {
 
     fetchComments();
 
+    return () => {
+      isMounted = false;
+    };
+  }, [movieId]);
+
+  // Listener para fechar no Escape
+  useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.key === 'Escape') {
-        onClose();
+        onClose?.();
       }
     };
 
     document.addEventListener('keydown', handleKeyDown);
     return () => {
-      isMounted = false;
       document.removeEventListener('keydown', handleKeyDown);
     };
-  }, [movie, onClose, onCommentsCountChange]);
+  }, [onClose]);
 
   const handleAddComment = async (e) => {
     e.preventDefault();
     const texto = commentText.trim();
-    if (!texto) return;
+    if (!texto || !movieId) return;
 
     setSaving(true);
     try {
-      await api.addComment(movie.id, texto);
+      const res = await api.addComment(movieId, texto);
       setCommentText('');
       showToast('Comentário salvo com sucesso!', 'success');
 
-      // Recarrega comentários
-      const res = await api.getMovieComments(movie.id);
-      const list = res.comments || [];
-      setComments(list);
-      onCommentsCountChange?.(movie.id, list.length);
+      if (res?.comment) {
+        setComments((prev) => {
+          const updated = [res.comment, ...prev];
+          onCommentsCountChange?.(movieId, updated.length);
+          return updated;
+        });
+      } else {
+        const fetchRes = await api.getMovieComments(movieId);
+        const list = fetchRes.comments || [];
+        setComments(list);
+        onCommentsCountChange?.(movieId, list.length);
+      }
     } catch (err) {
       showToast(err.message || 'Erro ao salvar comentário.', 'error');
     } finally {
@@ -92,9 +109,11 @@ export function CommentsModal({ movie, onClose, onCommentsCountChange }) {
       await api.deleteComment(commentId);
       showToast('Comentário removido.', 'info');
 
-      const updated = comments.filter((c) => c.id !== commentId);
-      setComments(updated);
-      onCommentsCountChange?.(movie.id, updated.length);
+      setComments((prev) => {
+        const updated = prev.filter((c) => c.id !== commentId);
+        onCommentsCountChange?.(movieId, updated.length);
+        return updated;
+      });
     } catch (err) {
       showToast(err.message || 'Erro ao excluir comentário.', 'error');
     }

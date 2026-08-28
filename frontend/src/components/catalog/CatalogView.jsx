@@ -59,10 +59,16 @@ export function CatalogView() {
     }
   };
 
+  const handleCloseModal = useCallback(() => {
+    setActiveModalMovie(null);
+  }, []);
+
   const handleCommentsCountChange = useCallback((movieId, count) => {
-    setMovies((prev) =>
-      prev.map((m) => (m.id === movieId ? { ...m, comments_count: count } : m))
-    );
+    setMovies((prev) => {
+      const target = prev.find((m) => m.id === movieId);
+      if (target && target.comments_count === count) return prev;
+      return prev.map((m) => (m.id === movieId ? { ...m, comments_count: count } : m));
+    });
   }, []);
 
   // Filtragem e Ordenação
@@ -178,7 +184,7 @@ export function CatalogView() {
       {activeModalMovie && (
         <CommentsModal
           movie={activeModalMovie}
-          onClose={() => setActiveModalMovie(null)}
+          onClose={handleCloseModal}
           onCommentsCountChange={handleCommentsCountChange}
         />
       )}
