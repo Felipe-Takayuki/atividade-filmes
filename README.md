@@ -7,140 +7,54 @@
 
 ## 📌 Visão Geral da Atividade 3
 
-Nesta atividade, a arquitetura da **Atividade 2 (monólito)** foi evoluída para uma **arquitetura de microsserviços desacoplados**. Toda a lógica de gestão de usuários e autenticação (**login, cadastro, emissão de JWT, papéis de usuário `role` e recuperação de senha**) foi extraída para um microsserviço independente (**`auth-service`**), isolado na rede interna do Docker e sem porta exposta para a internet. O container do **`catálogo`** atua como único ponto de entrada público e consome a API do TMDB e as tabelas de favoritos e comentários.
+Nesta atividade, a arquitetura da **Atividade 2 (monólito)** foi evoluída para uma **arquitetura de microsserviços desacoplados**. Toda a lógica de gestão de usuários e autenticação (**login, cadastro, emissão de JWT, papéis de usuário `role` e recuperação de senha**) foi isolada no microsserviço independente (**`auth-service`**), que opera exclusivamente na rede interna do Docker **sem qualquer porta publicada para o host**.
 
-### ✨ Principais Mudanças e Divisão de Responsabilidades
-
-1. **Microsserviço de Autenticação (`auth-service`)**:
-   - Serviço isolado na rede interna Docker (**sem porta publicada pro host**).
-   - Gerenciamento completo de usuários: cadastro (`/register`), login (`/login`), perfil (`/me`) e verificação de papéis (`/users/:id/role`).
-   - Suporte nativo a papéis de usuário diferenciados (`usuario` e `admin`).
-   - Fluxo de recuperação de senha com tokens criptográficos aleatórios de 32 bytes (64 caracteres hex).
-   - Tabela `reset_tokens` com expiração estrita de **30 minutos** (`expira_em`) e flag de uso único (`usado`).
-   - Envio de e-mail transacional real via **Mailtrap** (desenvolvimento) e suporte a **Brevo** (produção).
-   - Validação e redefinição segura de senha com hash `bcrypt`.
-
-2. **Catálogo de Filmes (`catalogo` - Frontend SPA + Backend)**:
-   - **Único ponto de entrada público** (porta reservada no host / Portainer).
-   - Integração com a API do TMDB: busca em tempo real da filmografia de Tom Hanks (pôsteres, títulos e sinopses).
-   - Gestão de favoritos e anotações/comentários gravados no MariaDB com isolamento estrito por `usuario_id = ?`.
-   - Delega requisições de autenticação e recuperação de senha diretamente ao `auth-service` via chamadas HTTP internas na rede Docker (`http://auth-service:4000`).
-
-3. **Validação Rigorosa em 3 Etapas (Recuperação de Senha)**:
-   - **Regra 1**: O token existe no banco de dados?
-   - **Regra 2**: Ainda não foi utilizado (`usado = false`)?
-   - **Regra 3**: Ainda não expirou (`agora <= expira_em`, validade de 30 min)?
-
----
-
-## 🏛️ Arquitetura de Referência (Dois Containers, Uma Rede)
+O container do **`catálogo`** atua como único ponto de entrada público para o usuário final, consumindo a API do TMDB e delegando a autenticação e recuperação de senha internamente para o `auth-service`.
 
 ```
-                       +-------------------------------------------------------------+
-                       |                     Rede Docker Interna                     |
-                       |                        (app-network)                        |
-                       |                                                             |
-+-----------------+    |   +-----------------------+     +-----------------------+   |
-| Navegador Web   |    |   |  Catálogo + Backend   |     |     auth-service      |   |
-| (Usuário Final) |=======>| (Ponto Único Público) |====>| (Auth, Roles, Senha)  |   |
-|                 |HTTPS   |     (Porta 3000)      |     |  (Sem Porta Exposta)  |   |
-|                 |        |                       |     |     (Porta 4000)      |   |
-+-----------------+    |   +-----------------------+     +-----------------------+   |
-        ^              |               |                             |               |
-        |              +---------------|-----------------------------|---------------+
-        |                              |                             |
-        |                              v                             v
-        |                    +-----------------------------------------------+
-        |                    |                    MariaDB                    |
-        |                    |  (usuarios, reset_tokens, favoritos, coment.) |
-        |                    +-----------------------------------------------+
-        |                                                            |
-        |                                                            v
-        |                                                +-----------------------+
-        |                                                |     SMTP Externo      |
-        |                                                |   Mailtrap / Brevo    |
-        |                                                +-----------------------+
-        |                                                            |
-        +----------------------- E-mail com Link --------------------+
-```
-
-### 📋 Comparativo: Atividade 2 (Monólito) vs Atividade 3 (Desacoplado)
-
-| Característica | Atividade 2 (Monólito) | Atividade 3 (Desacoplado) |
-|---|---|---|
-| **Containers** | 1 container de aplicação + MariaDB | **2 containers de aplicação** (`catalogo` e `auth-service`) + MariaDB |
-| **Ponto de Entrada** | Porta pública para toda a aplicação | **Apenas o Catálogo** expõe porta pública |
-| **Autenticação e Usuários** | Código acoplado no mesmo backend | **Microsserviço independente** (`auth-service`) |
-| **Troca de Senha** | Não implementado | **Microsserviço independente** com SMTP e tokens temporizados (30 min) |
-| **Papéis de Usuário** | Não diferenciados | **`usuario` e `admin`** |
-| **Comunicação Interna** | Chamadas locais diretas | **Chamadas HTTP internas** via rede Docker (`http://auth-service:4000`) |
-
----
-
-## 📂 Estrutura de Diretórios do Repositório
-
-```
-.
-├── auth-service/                     # 🔑 Microsserviço de Troca de Senha
-│   ├── Dockerfile                    # Container isolado (sem porta pública pro host)
-│   ├── package.json                  # Dependências: express, mysql2, bcryptjs, nodemailer
-│   └── src/
-│       ├── config/
-│       │   └── db.js                 # Pool MariaDB e criação da tabela reset_tokens
-│       ├── controllers/
-│       │   └── authController.js     # Lógica de Troca de Senha (forgot, verify, reset)
-│       ├── routes/
-│       │   └── authRoutes.js         # Rotas /forgot-password, /verify-reset-token, /reset-password
-│       ├── services/
-│       │   └── emailService.js       # Envio de e-mail transacional via Nodemailer (Mailtrap/Brevo)
-│       └── index.js                  # Ponto de entrada do auth-service (porta 4000 interna)
-│
-├── backend/                          # 🎬 Backend do Catálogo (Autenticação, Proxy Troca de Senha, Filmes, Favoritos, Comentários)
-│   ├── package.json
-│   └── src/
-│       ├── config/
-│       │   └── db.js                 # Pool MariaDB e tabelas usuarios, favoritos e comentarios
-│       ├── controllers/
-│       │   ├── authController.js     # Autenticação direta (login/register/me) e delegação de troca de senha
-│       │   ├── commentController.js  # Anotações e comentários
-│       │   ├── favoriteController.js # Filmes favoritos
-│       │   └── movieController.js    # Consumo e cache TMDB
-│       ├── middleware/
-│       │   └── auth.js               # Assinatura e verificação JWT, verificação de papéis (roles)
-│       ├── routes/                   # authRoutes, movieRoutes, favoriteRoutes, commentRoutes
-│       ├── services/
-│       │   └── tmdbService.js        # Integração TMDB
-│       └── index.js                  # Servidor Express principal (porta 3000 pública)
-│
-├── frontend/                         # 🖥️ Interface SPA (React 19, Vite, Context API, Cinema Dark CSS)
-│   ├── package.json                  # Dependências React 19, ReactDOM, Vite
-│   ├── vite.config.js                # Configuração do Vite com proxy de desenvolvimento para API
-│   ├── index.html                    # Ponto de montagem HTML
-│   └── src/
-│       ├── main.jsx                  # Ponto de entrada do React
-│       ├── App.jsx                   # Componente raiz da aplicação
-│       ├── styles.css                # Estilização moderna, tema escuro e badges de role
-│       ├── context/                  # AuthContext e ToastContext para estado global
-│       ├── services/                 # api.js com chamadas HTTP e interceptores de autenticação
-│       └── components/               # Componentes modulares (Navbar, AuthView, CatalogView, Cards, Modal)
-│
-├── Dockerfile                        # Build do container do Catálogo
-├── docker-compose.yml                # Orquestração dos 2 microsserviços + MariaDB
-├── .env.example                      # Exemplo de variáveis de ambiente com Mailtrap
-└── README.md                         # Documentação completa
+               ┌─────────────────────────────────────────────────────────────┐
+               │              Rede Docker Interna (app-network)              │
+               │                                                             │
+┌─────────────┐│   ┌───────────────────────┐     ┌───────────────────────┐   │
+│  Navegador  ││   │  Catálogo + Backend   │     │     auth-service      │   │
+│ (Usuário)   │┼──>│ (Ponto Único Público) │────>│ (Auth, Roles, Senha)  │   │
+│             ││   │     Porta :3000       │HTTP │ (SEM PORTA NO HOST)   │   │
+└─────────────┘│   └───────────────────────┘     │     Porta :4000       │   │
+               │               │                 └───────────────────────┘   │
+               └───────────────┼─────────────────────────────┼───────────────┘
+                               │                             │
+                               ▼                             ▼
+                     ┌───────────────────────────────────────────────┐
+                     │                    MariaDB                    │
+                     │  (usuarios, reset_tokens, favoritos, coment.) │
+                     └───────────────────────────────────────────────┘
+                                                             │
+                                                             ▼
+                                                 ┌───────────────────────┐
+                                                 │     SMTP Externo      │
+                                                 │   Mailtrap / Brevo    │
+                                                 └───────────────────────┘
 ```
 
 ---
 
-## 🐳 Docker Compose: Rede Compartilhada e Isolamento de Portas
+## 🐳 Docker Compose: Dois Serviços e Rede Compartilhada
 
-Conforme exigido nos requisitos da atividade, o `auth-service` utiliza `expose: ["4000"]` e **NÃO** publica porta pro host (`ports:`), garantindo que ele seja invisível para a internet e acessível apenas internamente pelo Catálogo:
+O arquivo [`docker-compose.yml`](docker-compose.yml) orquestra os **dois serviços desacoplados** da aplicação conectados através da rede compartilhada `app-network`:
 
 ```yaml
 version: '3.8'
 
+# ==============================================================================
+# ISW055 - Atividade 3: Microsserviço de Autenticação (Serviços Desacoplados)
+# Arquitetura: 2 containers em rede interna isolada
+# Autenticação e Usuários: Gerenciados pelo Microsserviço auth-service (Login, Cadastro, Roles, SMTP/Tokens)
+# Catálogo & TMDB: Gerenciados pelo container catalogo (Backend + Frontend)
+# Ponto de entrada público: APENAS o container do catálogo (porta 3000)
+# ==============================================================================
+
 services:
-  # Container público do Catálogo (Porta mapeada no host)
+  # 1. Container do Catálogo (Frontend SPA + Backend TMDB/Favoritos/Comentários) - Único com porta pública
   catalogo:
     build:
       context: .
@@ -158,13 +72,13 @@ services:
       - TMDB_API_KEY=${TMDB_API_KEY}
       - JWT_SECRET=${JWT_SECRET:-chave_jwt_secreta_local_dev}
     depends_on:
-      - mariadb
       - auth-service
     networks:
       - app-network
     restart: unless-stopped
 
-  # Microsserviço de Autenticação (ISOLADO - Sem ports mapeado pro host)
+  # 2. Microsserviço de Troca de Senha (Geração de Tokens, Envio de E-mail SMTP e Redefinição)
+  # ATENÇÃO: Sem 'ports' publicado pro host - acessível APENAS via rede Docker interna
   auth-service:
     build:
       context: ./auth-service
@@ -185,24 +99,6 @@ services:
       - SMTP_USER=${SMTP_USER:-}
       - SMTP_PASS=${SMTP_PASS:-}
       - SMTP_FROM=${SMTP_FROM:-Catálogo Filmes <noreply@catalogofilmes.local>}
-    depends_on:
-      - mariadb
-    networks:
-      - app-network
-    restart: unless-stopped
-
-  # Banco de Dados MariaDB
-  mariadb:
-    image: mariadb:10.11
-    environment:
-      - MYSQL_ROOT_PASSWORD=rootpassword
-      - MYSQL_DATABASE=${DB_NAME:-catalogo_filmes}
-      - MYSQL_USER=${DB_USER:-aluno}
-      - MYSQL_PASSWORD=${DB_PASSWORD:-alunosenha}
-    expose:
-      - "3306"
-    volumes:
-      - mariadb_data:/var/lib/mysql
     networks:
       - app-network
     restart: unless-stopped
@@ -210,16 +106,77 @@ services:
 networks:
   app-network:
     driver: bridge
-
-volumes:
-  mariadb_data:
 ```
+
+---
+
+## 🔒 Confirmação de Isolamento: Serviço de Autenticação Sem Porta no Host
+
+> [!IMPORTANT]
+> **Confirmação de Segurança e Desacoplamento:**
+> - O container **`auth-service` NÃO possui a diretiva `ports:` configurada**.
+> - Ele utiliza exclusivamente **`expose: ["4000"]`**, o que significa que a porta 4000 **NÃO é publicada/mapeada para a máquina host nem para a internet**.
+> - O acesso ao `auth-service` ocorre **estritamente de forma interna** pelo container `catalogo` via DNS interno do Docker: `http://auth-service:4000`.
+> - O único container com porta aberta para o host é o **`catalogo`** (`ports: - "${PORT:-3000}:3000"`), garantindo que todo o tráfego externo passe pelo ponto de entrada controlado.
+
+### 📋 Tabela Comparativa de Exposição de Portas
+
+| Serviço | Porta Interna | Publicada no Host (`ports`)? | Acessível Externamente? | Comunicação Permitida |
+|---|---|---|---|---|
+| **`catalogo`** | `3000` | **Sim** (`${PORT:-3000}:3000`) | **Sim** (Navegador / Portainer) | Usuário final ↔ Aplicação |
+| **`auth-service`** | `4000` | **NÃO** (apenas `expose: 4000`) | **NÃO** (Bloqueada pro host) | Apenas interna via `app-network` (`http://auth-service:4000`) |
+
+---
+
+## 📸 Demonstração Prática dos Fluxos
+
+### 1. Fluxo Completo de Esqueci a Senha (Pedido → E-mail Mailtrap → Link Usado → Senha Trocada)
+
+O fluxo de recuperação de senha segue um ciclo completo e seguro:
+1. **Pedido**: O usuário acessa a aba *"Recuperar Senha"* no Catálogo e informa seu e-mail cadastrado (`ftanaka91@gmail.com`).
+2. **Geração Segura**: O `auth-service` gera um token criptográfico aleatório de 32 bytes (64 caracteres hexadecimais), grava na tabela `reset_tokens` com validade estrita de 30 minutos (`DATE_ADD(NOW(), INTERVAL 30 MINUTE)`) e status `usado = FALSE`.
+3. **E-mail Recebido (Mailtrap)**: O e-mail transacional é enviado via SMTP para a sandbox do Mailtrap contendo o botão estilizado *"Redefinir Minha Senha"* apontando para o link único `/#reset-token=<token>`.
+4. **Link Usado e Validado**: Ao abrir o link, o frontend consulta o `auth-service` (`GET /api/auth/verify-reset-token/:token`), que confirma que o token é válido, pertence ao usuário e ainda não expirou, exibindo a mensagem: *"Link verificado com sucesso! Digite sua nova senha abaixo."*
+5. **Senha Trocada**: O usuário digita a nova senha, que é criptografada com `bcrypt` (10 rounds de salt) no MariaDB, o token é marcado como `usado = TRUE` para prevenir reutilização e o acesso é liberado com sucesso.
+
+![Fluxo Completo de Recuperação de Senha: E-mail no Mailtrap e Redefinição no Catálogo](docs/Group%203.png)
+
+---
+
+### 2. Tentativas Recusadas: Link Expirado (> 30 Minutos) e Token Já Utilizado / Inválido
+
+O `auth-service` implementa uma **validação rigorosa em 3 etapas** antes de autorizar qualquer troca de senha:
+
+```
+Requisição de Troca ──> 1. Token existe no banco? ──Não──> ❌ Erro: Token inválido ou inexistente
+                                │ Sim
+                                ▼
+                        2. Token já foi usado?   ──Sim──> ❌ Erro: Link já utilizado
+                                │ Não (usado = false)
+                                ▼
+                        3. Token expirou (>30m)? ──Sim──> ❌ Erro: Link expirou (30 min)
+                                │ Não (agora <= expira_em)
+                                ▼
+                        ✅ Permite redefinir a nova senha
+```
+
+#### Evidências Visuais das Recusas:
+
+1. **Tentativa com Link Já Utilizado (Superior)**:
+   - Ao tentar reutilizar um link cujo token já teve `usado = TRUE` registrado no banco, a aplicação recusa a operação:
+   > **`"Este link de recuperação já foi utilizado. Solicite um novo link."`**
+
+2. **Tentativa Após 30 Minutos / Expirado (Inferior)**:
+   - Se o usuário tentar abrir o link após a janela de 30 minutos (`NOW() > expira_em`), a validação rejeita o acesso:
+   > **`"Este link de recuperação expirou (validade de 30 minutos). Solicite um novo link."`**
+
+![Tentativas Recusadas: Token Já Utilizado e Token Expirado após 30 Minutos](docs/Group%202.png)
 
 ---
 
 ## 🗄️ Modelo do Banco de Dados
 
-### 1. Tabela `usuarios` (Gerenciada pelo Backend / Catálogo)
+### 1. Tabela `usuarios` (Autenticação e Perfis)
 ```sql
 CREATE TABLE IF NOT EXISTS usuarios (
   id INT AUTO_INCREMENT PRIMARY KEY,
@@ -231,7 +188,7 @@ CREATE TABLE IF NOT EXISTS usuarios (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 ```
 
-### 2. Tabela `reset_tokens` (Gerenciada pelo `auth-service`)
+### 2. Tabela `reset_tokens` (Gerenciada pelo `auth-service` com Expiração de 30 Min)
 ```sql
 CREATE TABLE IF NOT EXISTS reset_tokens (
   id INT AUTO_INCREMENT PRIMARY KEY,
@@ -267,6 +224,51 @@ CREATE TABLE IF NOT EXISTS comentarios (
   criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE CASCADE
 );
+```
+
+---
+
+## 📂 Estrutura do Projeto
+
+```
+.
+├── auth-service/                     # 🔑 Microsserviço de Autenticação e Troca de Senha
+│   ├── Dockerfile                    # Container isolado (SEM porta pública pro host)
+│   ├── package.json                  # Dependências: express, mysql2, bcryptjs, nodemailer
+│   └── src/
+│       ├── config/db.js              # Pool MariaDB e criação da tabela reset_tokens
+│       ├── controllers/authController.js # Lógica de login, cadastro, roles e recuperação
+│       ├── middleware/auth.js        # Geração e validação de tokens JWT
+│       ├── routes/authRoutes.js      # Endpoints /forgot-password, /verify-reset-token, etc.
+│       ├── services/emailService.js  # Envio de e-mail via Nodemailer (Mailtrap/Brevo)
+│       └── index.js                  # Inicialização do auth-service (porta 4000 interna)
+│
+├── backend/                          # 🎬 Backend do Catálogo (Proxy, TMDB, Favoritos, Comentários)
+│   ├── package.json
+│   └── src/
+│       ├── config/db.js              # Pool MariaDB e tabelas usuarios, favoritos e comentarios
+│       ├── controllers/              # authController, movieController, favoriteController, commentController
+│       ├── middleware/auth.js        # Middleware de proteção JWT e verificação de roles
+│       ├── routes/                   # authRoutes, movieRoutes, favoriteRoutes, commentRoutes
+│       ├── services/tmdbService.js   # Integração com API TMDB (filmografia Tom Hanks)
+│       └── index.js                  # Servidor Express principal (porta 3000 pública)
+│
+├── frontend/                         # 🖥️ Interface SPA (React 19, Vite, Context API, Tema Dark)
+│   ├── src/
+│   │   ├── components/auth/          # LoginForm, RegisterForm, ForgotPasswordForm, ResetPasswordForm
+│   │   ├── components/catalog/       # MovieCard, MovieGrid, MovieModal, SearchBar
+│   │   ├── context/AuthContext.jsx   # Gestão de estado de autenticação e papéis
+│   │   └── services/api.js           # Cliente Axios para a API
+│   └── index.html
+│
+├── docs/                             # 📸 Evidências Visuais e Capturas de Tela
+│   ├── Group 2.png                   # Print: Tentativas recusadas (Token expirado e Token já usado)
+│   └── Group 3.png                   # Print: Fluxo completo (E-mail no Mailtrap e Senha redefinida)
+│
+├── Dockerfile                        # Build do container do Catálogo
+├── docker-compose.yml                # Orquestração dos 2 microsserviços na rede app-network
+├── .env.example                      # Modelo de variáveis de ambiente com Mailtrap
+└── README.md                         # Documentação completa
 ```
 
 ---
@@ -308,11 +310,9 @@ Crie seu arquivo `.env` baseado no `.env.example`:
    ```bash
    cp .env.example .env
    ```
-   Edite o arquivo `.env` e preencha:
-   - `TMDB_API_KEY`: sua chave TMDB
-   - `SMTP_USER` e `SMTP_PASS`: suas credenciais da Inbox do Mailtrap
+   Edite o arquivo `.env` e preencha `TMDB_API_KEY`, `SMTP_USER` e `SMTP_PASS`.
 
-2. **Subir os Microsserviços e o Banco**:
+2. **Subir os Microsserviços**:
    ```bash
    docker compose up --build
    ```
@@ -320,62 +320,3 @@ Crie seu arquivo `.env` baseado no `.env.example`:
 3. **Acessar a Aplicação**:
    Abra no seu navegador: `http://localhost:3000`
 
----
-
-## 🧪 Demonstração dos Fluxos de Teste
-
-### 1. Fluxo de Cadastro e Consulta de Papéis (`role`)
-1. Acesse a tela inicial e selecione a aba **Criar Conta**.
-2. Preencha seu nome, e-mail, senha e escolha o papel (**Usuário Comum** ou **Administrador**).
-3. Ao entrar no catálogo, o badge de perfil no canto superior direito exibirá o papel correspondente (`usuario` ou `admin`).
-4. O backend responde às consultas e valida permissões pelo token JWT e endpoint `GET /api/auth/users/:id/role`.
-
----
-
-### 2. Fluxo Completo de Esqueci Minha Senha (Link Válido)
-1. Na tela de login, clique em **"Esqueci minha senha"**.
-2. Digite o e-mail cadastrado e clique em **"Enviar Link de Recuperação"**.
-3. Acesse a sua caixa de entrada no [Mailtrap](https://mailtrap.io):
-   - O e-mail formatado em HTML moderno com tema de cinema é entregue instantaneamente.
-   - O e-mail contém um botão **"Redefinir Minha Senha"** apontando para `http://localhost:3000/#reset-token=...`.
-4. Clique no link no Mailtrap:
-   - A página do catálogo abre diretamente no formulário **Redefinir Senha**.
-   - O frontend valida o token junto ao `auth-service` via backend do catálogo.
-5. Digite a nova senha e clique em **"Salvar Nova Senha"**.
-6. A senha é criptografada com `bcrypt`, o token é marcado como `usado = true` e o usuário é redirecionado para o login.
-7. Faça login com a nova senha com sucesso!
-
----
-
-### 3. Demonstração de Recusa: Token Expirado (> 30 Minutos) ou Já Usado
-1. **Tentativa de Reutilização**:
-   - Clique novamente no mesmo link de redefinição no Mailtrap que já foi utilizado.
-   - O `auth-service` detecta `usado = 1` e rejeita a operação com o erro:
-     `"Este link de recuperação já foi utilizado. Solicite um novo link."`
-2. **Tentativa de Token Expirado**:
-   - Caso um token seja acessado após decorridos 30 minutos de `expira_em` (`agora > expira_em`), a operação é recusada com:
-     `"Este link de recuperação expirou (validade de 30 minutos). Solicite um novo link."`
-3. **Tentativa com Token Forjado / Inválido**:
-   - Se o parâmetro do token for alterado para um hash inexistente, a aplicação recusa com:
-     `"Token de recuperação inválido ou inexistente."`
-
----
-
-## 🚢 Deploy no Portainer (Instruções da Atividade)
-
-1. No **Portainer**, crie ou atualize a Stack apontando para este repositório do GitHub.
-2. Em **Environment variables**, configure:
-   - `PORT`: Porta reservada do aluno
-   - `APP_URL`: Subdomínio público da sua stack
-   - `TMDB_API_KEY`: Sua chave TMDB
-   - `DB_HOST`: Host do MariaDB da infraestrutura da disciplina
-   - `DB_PORT`: `3306`
-   - `DB_USER`: Seu usuário MariaDB
-   - `DB_PASSWORD`: Sua senha MariaDB
-   - `DB_NAME`: Sua base de dados
-   - `JWT_SECRET`: Chave secreta aleatória
-   - `SMTP_HOST`: `sandbox.smtp.mailtrap.io` (dev) ou host do Brevo (prod)
-   - `SMTP_PORT`: `2525` ou `587`
-   - `SMTP_USER` / `SMTP_PASS`: Credenciais SMTP
-3. Realize o deploy da Stack.
-4. Confirme que apenas a porta do catálogo foi publicada e teste o fluxo completo.
