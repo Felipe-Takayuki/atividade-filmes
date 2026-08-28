@@ -34,7 +34,6 @@ const btnToForgot = document.getElementById('btn-to-forgot');
 const registerNome = document.getElementById('register-nome');
 const registerEmail = document.getElementById('register-email');
 const registerSenha = document.getElementById('register-senha');
-const registerRole = document.getElementById('register-role');
 const btnSubmitRegister = document.getElementById('btn-submit-register');
 
 // Campos Esqueci Senha
@@ -150,7 +149,6 @@ async function handleRegister(e) {
   const nome = registerNome.value.trim();
   const email = registerEmail.value.trim();
   const senha = registerSenha.value;
-  const role = registerRole ? registerRole.value : 'usuario';
 
   if (!nome || !email || !senha) {
     showAlert('Por favor, preencha todos os campos obrigatórios.');
@@ -166,7 +164,7 @@ async function handleRegister(e) {
   btnSubmitRegister.textContent = 'Cadastrando no Microsserviço...';
 
   try {
-    const data = await api.register(nome, email, senha, role);
+    const data = await api.register(nome, email, senha);
     formRegister.reset();
     showAppView(data.user);
     window.dispatchEvent(new CustomEvent('auth:login', { detail: data.user }));
