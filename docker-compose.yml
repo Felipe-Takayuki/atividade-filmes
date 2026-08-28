@@ -1,15 +1,15 @@
 version: '3.8'
 
 # ==============================================================================
-# ISW055 - Atividade 3: Microsserviço de Troca de Senha (Serviços Desacoplados)
+# ISW055 - Atividade 3: Microsserviço de Autenticação (Serviços Desacoplados)
 # Arquitetura: 2 containers + MariaDB em rede interna isolada
-# Autenticação: Gerenciada no Backend (Catálogo)
-# Troca de Senha: Gerenciada pelo Microsserviço auth-service (SMTP/Tokens)
+# Autenticação e Usuários: Gerenciados pelo Microsserviço auth-service (Login, Cadastro, Roles, SMTP/Tokens)
+# Catálogo & TMDB: Gerenciados pelo container catalogo (Backend + Frontend)
 # Ponto de entrada público: APENAS o container do catálogo (porta 3000)
 # ==============================================================================
 
 services:
-  # 1. Container do Catálogo (Frontend SPA + Backend com Autenticação e Catálogo) - Único com porta pública
+  # 1. Container do Catálogo (Frontend SPA + Backend TMDB/Favoritos/Comentários) - Único com porta pública
   catalogo:
     build:
       context: .

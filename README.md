@@ -7,23 +7,26 @@
 
 ## 📌 Visão Geral da Atividade 3
 
-Nesta atividade, a arquitetura da **Atividade 2 (monólito)** foi evoluída para uma **arquitetura de microsserviços desacoplados**. A autenticação principal de usuários (login, cadastro, JWT e sessões) permanece no **`backend`**, enquanto o fluxo especializado de **recuperação e troca de senha** foi desacoplado em um microsserviço independente (`auth-service`), isolado na rede interna e com integração SMTP.
+Nesta atividade, a arquitetura da **Atividade 2 (monólito)** foi evoluída para uma **arquitetura de microsserviços desacoplados**. Toda a lógica de gestão de usuários e autenticação (**login, cadastro, emissão de JWT, papéis de usuário `role` e recuperação de senha**) foi extraída para um microsserviço independente (**`auth-service`**), isolado na rede interna do Docker e sem porta exposta para a internet. O container do **`catálogo`** atua como único ponto de entrada público e consome a API do TMDB e as tabelas de favoritos e comentários.
 
 ### ✨ Principais Mudanças e Divisão de Responsabilidades
-1. **Autenticação no Backend (`backend`)**:
-   - Cadastro (`/api/auth/register`) e Login (`/api/auth/login`).
-   - Gestão de tokens JWT, cookies seguros e dados de sessão (`/api/auth/me`).
-   - Suporte a papéis de usuário diferenciados (`usuario` e `admin`).
-   - Domínio do Catálogo: consumo TMDB, favoritos e comentários com controle de permissões.
 
-2. **Microsserviço de Troca de Senha (`auth-service`)**:
+1. **Microsserviço de Autenticação (`auth-service`)**:
    - Serviço isolado na rede interna Docker (**sem porta publicada pro host**).
-   - Geração de tokens criptográficos aleatórios de 32 bytes (64 caracteres hex).
-   - Tabela `reset_tokens` com controle de expiração estrita de **30 minutos** (`expira_em`) e flag de uso único (`usado`).
+   - Gerenciamento completo de usuários: cadastro (`/register`), login (`/login`), perfil (`/me`) e verificação de papéis (`/users/:id/role`).
+   - Suporte nativo a papéis de usuário diferenciados (`usuario` e `admin`).
+   - Fluxo de recuperação de senha com tokens criptográficos aleatórios de 32 bytes (64 caracteres hex).
+   - Tabela `reset_tokens` com expiração estrita de **30 minutos** (`expira_em`) e flag de uso único (`usado`).
    - Envio de e-mail transacional real via **Mailtrap** (desenvolvimento) e suporte a **Brevo** (produção).
    - Validação e redefinição segura de senha com hash `bcrypt`.
 
-3. **Validação Rigorosa em 3 Etapas**:
+2. **Catálogo de Filmes (`catalogo` - Frontend SPA + Backend)**:
+   - **Único ponto de entrada público** (porta reservada no host / Portainer).
+   - Integração com a API do TMDB: busca em tempo real da filmografia de Tom Hanks (pôsteres, títulos e sinopses).
+   - Gestão de favoritos e anotações/comentários gravados no MariaDB com isolamento estrito por `usuario_id = ?`.
+   - Delega requisições de autenticação e recuperação de senha diretamente ao `auth-service` via chamadas HTTP internas na rede Docker (`http://auth-service:4000`).
+
+3. **Validação Rigorosa em 3 Etapas (Recuperação de Senha)**:
    - **Regra 1**: O token existe no banco de dados?
    - **Regra 2**: Ainda não foi utilizado (`usado = false`)?
    - **Regra 3**: Ainda não expirou (`agora <= expira_em`, validade de 30 min)?
@@ -39,9 +42,9 @@ Nesta atividade, a arquitetura da **Atividade 2 (monólito)** foi evoluída para
                        |                                                             |
 +-----------------+    |   +-----------------------+     +-----------------------+   |
 | Navegador Web   |    |   |  Catálogo + Backend   |     |     auth-service      |   |
-| (Usuário Final) |=======>| (Autenticação + TMDB) |====>|   (Troca de Senha)    |   |
-|                 |HTTPS   | (Único Ponto Público) |     |  (Sem Porta Exposta)  |   |
-|                 |        |     (Porta 3000)      |     |     (Porta 4000)      |   |
+| (Usuário Final) |=======>| (Ponto Único Público) |====>| (Auth, Roles, Senha)  |   |
+|                 |HTTPS   |     (Porta 3000)      |     |  (Sem Porta Exposta)  |   |
+|                 |        |                       |     |     (Porta 4000)      |   |
 +-----------------+    |   +-----------------------+     +-----------------------+   |
         ^              |               |                             |               |
         |              +---------------|-----------------------------|---------------+
@@ -67,10 +70,10 @@ Nesta atividade, a arquitetura da **Atividade 2 (monólito)** foi evoluída para
 |---|---|---|
 | **Containers** | 1 container de aplicação + MariaDB | **2 containers de aplicação** (`catalogo` e `auth-service`) + MariaDB |
 | **Ponto de Entrada** | Porta pública para toda a aplicação | **Apenas o Catálogo** expõe porta pública |
-| **Autenticação** | Código acoplado no mesmo backend | **Backend** gerencia autenticação e sessões |
-| **Troca de Senha** | Não implementado | **Microsserviço independente** (`auth-service`) com SMTP e tokens temporizados |
+| **Autenticação e Usuários** | Código acoplado no mesmo backend | **Microsserviço independente** (`auth-service`) |
+| **Troca de Senha** | Não implementado | **Microsserviço independente** com SMTP e tokens temporizados (30 min) |
 | **Papéis de Usuário** | Não diferenciados | **`usuario` e `admin`** |
-| **Comunicação Interna** | Chamadas locais diretas | **Chamadas HTTP internas** via DNS Docker (`http://auth-service:4000`) |
+| **Comunicação Interna** | Chamadas locais diretas | **Chamadas HTTP internas** via rede Docker (`http://auth-service:4000`) |
 
 ---
 
