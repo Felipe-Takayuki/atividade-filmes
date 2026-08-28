@@ -2,6 +2,186 @@ import crypto from 'crypto';
 import bcrypt from 'bcryptjs';
 import { pool } from '../config/db.js';
 import { sendPasswordResetEmail } from '../services/emailService.js';
+import { generateToken } from '../middleware/auth.js';
+
+// ==============================================================================
+// 1. AUTENTICAÇÃO E GESTÃO DE USUÁRIOS (Cadastro, Login, Perfil e Roles)
+// ==============================================================================
+
+/**
+ * Cadastro de novo usuário
+ * Rota: POST /register ou POST /api/auth/register
+ */
+export async function register(req, res) {
+  try {
+    const { nome, email, senha, role } = req.body;
+
+    if (!nome || !email || !senha) {
+      return res.status(400).json({ error: 'Todos os campos são obrigatórios (nome, email, senha).' });
+    }
+
+    if (senha.length < 4) {
+      return res.status(400).json({ error: 'A senha deve conter no mínimo 4 caracteres.' });
+    }
+
+    const emailNorm = email.trim().toLowerCase();
+    const userRole = (role === 'admin') ? 'admin' : 'usuario';
+
+    // Verifica duplicidade de e-mail no banco
+    const [existing] = await pool.query('SELECT id FROM usuarios WHERE email = ?', [emailNorm]);
+    if (existing.length > 0) {
+      return res.status(409).json({ error: 'Este e-mail já está cadastrado.' });
+    }
+
+    // Criptografa a senha com bcrypt
+    const saltRounds = 10;
+    const senha_hash = await bcrypt.hash(senha, saltRounds);
+
+    // Insere novo usuário
+    const [result] = await pool.query(
+      'INSERT INTO usuarios (nome, email, senha_hash, role) VALUES (?, ?, ?, ?)',
+      [nome.trim(), emailNorm, senha_hash, userRole]
+    );
+
+    const user = {
+      id: result.insertId,
+      nome: nome.trim(),
+      email: emailNorm,
+      role: userRole
+    };
+
+    // Gera token JWT de autenticação
+    const token = generateToken(user);
+
+    return res.status(201).json({
+      success: true,
+      message: 'Usuário cadastrado com sucesso.',
+      user,
+      token
+    });
+  } catch (err) {
+    console.error('[Auth-Service] Erro no cadastro:', err);
+    return res.status(500).json({ error: 'Erro interno ao realizar cadastro.' });
+  }
+}
+
+/**
+ * Login de usuário
+ * Rota: POST /login ou POST /api/auth/login
+ */
+export async function login(req, res) {
+  try {
+    const { email, senha } = req.body;
+
+    if (!email || !senha) {
+      return res.status(400).json({ error: 'E-mail e senha são obrigatórios.' });
+    }
+
+    const emailNorm = email.trim().toLowerCase();
+
+    const [rows] = await pool.query(
+      'SELECT id, nome, email, senha_hash, role FROM usuarios WHERE email = ?',
+      [emailNorm]
+    );
+
+    if (rows.length === 0) {
+      return res.status(401).json({ error: 'Credenciais inválidas. E-mail ou senha incorretos.' });
+    }
+
+    const userRecord = rows[0];
+    const senhaValida = await bcrypt.compare(senha, userRecord.senha_hash);
+
+    if (!senhaValida) {
+      return res.status(401).json({ error: 'Credenciais inválidas. E-mail ou senha incorretos.' });
+    }
+
+    const user = {
+      id: userRecord.id,
+      nome: userRecord.nome,
+      email: userRecord.email,
+      role: userRecord.role || 'usuario'
+    };
+
+    const token = generateToken(user);
+
+    return res.json({
+      success: true,
+      message: 'Login realizado com sucesso.',
+      user,
+      token
+    });
+  } catch (err) {
+    console.error('[Auth-Service] Erro no login:', err);
+    return res.status(500).json({ error: 'Erro interno ao realizar login.' });
+  }
+}
+
+/**
+ * Consulta perfil do usuário autenticado (/me)
+ * Rota: GET /me ou GET /api/auth/me
+ */
+export async function me(req, res) {
+  try {
+    const userId = req.user?.id;
+    if (!userId) {
+      return res.status(401).json({ error: 'Usuário não autenticado.' });
+    }
+
+    const [rows] = await pool.query(
+      'SELECT id, nome, email, role, criado_em FROM usuarios WHERE id = ?',
+      [userId]
+    );
+
+    if (rows.length === 0) {
+      return res.status(404).json({ error: 'Usuário não encontrado.' });
+    }
+
+    return res.json({
+      success: true,
+      user: rows[0]
+    });
+  } catch (err) {
+    console.error('[Auth-Service] Erro ao consultar perfil:', err);
+    return res.status(500).json({ error: 'Erro interno ao consultar perfil.' });
+  }
+}
+
+/**
+ * Consulta papel (role) de um usuário pelo ID
+ * Rota: GET /users/:id/role ou GET /api/auth/users/:id/role
+ */
+export async function getUserRole(req, res) {
+  try {
+    const userId = parseInt(req.params.id, 10);
+    if (isNaN(userId)) {
+      return res.status(400).json({ error: 'ID de usuário inválido.' });
+    }
+
+    const [rows] = await pool.query(
+      'SELECT id, nome, email, role FROM usuarios WHERE id = ?',
+      [userId]
+    );
+
+    if (rows.length === 0) {
+      return res.status(404).json({ error: 'Usuário não encontrado.' });
+    }
+
+    return res.json({
+      success: true,
+      id: rows[0].id,
+      nome: rows[0].nome,
+      email: rows[0].email,
+      role: rows[0].role || 'usuario'
+    });
+  } catch (err) {
+    console.error('[Auth-Service] Erro ao consultar papel do usuário:', err);
+    return res.status(500).json({ error: 'Erro interno ao consultar papel do usuário.' });
+  }
+}
+
+// ==============================================================================
+// 2. RECUPERAÇÃO E REDEFINIÇÃO DE SENHA (SMTP Mailtrap / Brevo)
+// ==============================================================================
 
 /**
  * 1. Esqueci Minha Senha — Gera token de 30 minutos e envia e-mail real via SMTP

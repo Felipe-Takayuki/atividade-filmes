@@ -15,7 +15,7 @@ const router = Router();
 
 router.post('/register', register);
 router.post('/login', login);
-router.get('/me', authenticate, me);
+router.get('/me', me);
 router.post('/logout', logout);
 
 // Rotas de recuperação de senha delegadas ao auth-service
