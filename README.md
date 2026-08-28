@@ -112,14 +112,17 @@ Nesta atividade, a arquitetura da **Atividade 2 (monólito)** foi evoluída para
 │       │   └── tmdbService.js        # Integração TMDB
 │       └── index.js                  # Servidor Express principal (porta 3000 pública)
 │
-├── frontend/                         # 🖥️ Interface SPA (HTML5, CSS3 Cinema Dark, JS Vanilla)
-│   ├── index.html                    # Telas de Login, Registro, Recuperação de Senha e Catálogo
-│   ├── css/
-│   │   └── styles.css                # Estilização moderna, tema escuro e badges de role
-│   └── js/
-│       ├── api.js                    # Cliente HTTP integrado com endpoints do catálogo e auth
-│       ├── auth.js                   # Fluxos de Login, Cadastro, Mailtrap e Validação de Link
-│       └── app.js                    # Catálogo TMDB, anotações e favoritos
+├── frontend/                         # 🖥️ Interface SPA (React 19, Vite, Context API, Cinema Dark CSS)
+│   ├── package.json                  # Dependências React 19, ReactDOM, Vite
+│   ├── vite.config.js                # Configuração do Vite com proxy de desenvolvimento para API
+│   ├── index.html                    # Ponto de montagem HTML
+│   └── src/
+│       ├── main.jsx                  # Ponto de entrada do React
+│       ├── App.jsx                   # Componente raiz da aplicação
+│       ├── styles.css                # Estilização moderna, tema escuro e badges de role
+│       ├── context/                  # AuthContext e ToastContext para estado global
+│       ├── services/                 # api.js com chamadas HTTP e interceptores de autenticação
+│       └── components/               # Componentes modulares (Navbar, AuthView, CatalogView, Cards, Modal)
 │
 ├── Dockerfile                        # Build do container do Catálogo
 ├── docker-compose.yml                # Orquestração dos 2 microsserviços + MariaDB

@@ -1,28 +1,37 @@
 # ==============================================================================
-# Dockerfile para Catálogo de Filmes Tom Hanks
+# Dockerfile para Catálogo de Filmes Tom Hanks (React SPA + Express Backend)
 # Compatível com Portainer e Docker Compose
 # ==============================================================================
 
-FROM node:20-alpine
+FROM node:20-alpine AS builder
 
-# Define diretório de trabalho
 WORKDIR /app
 
-# Copia manifestos de dependências do backend
-COPY backend/package*.json ./backend/
+# Instala dependências e compila o frontend React
+COPY frontend/package*.json ./frontend/
+RUN npm --prefix frontend install
+COPY frontend/ ./frontend/
+RUN npm --prefix frontend run build
 
-# Instala apenas dependências de produção
+FROM node:20-alpine
+
+WORKDIR /app
+
+# Copia manifestos e instala dependências de produção do backend
+COPY backend/package*.json ./backend/
 RUN npm --prefix backend install --omit=dev
 
-# Copia o código fonte do backend e frontend
+# Copia o código fonte do backend
 COPY backend/ ./backend/
-COPY frontend/ ./frontend/
+
+# Copia o build compilado do frontend React
+COPY --from=builder /app/frontend/dist ./frontend/dist
 
 # Define variáveis de ambiente padrão
 ENV NODE_ENV=production
 ENV PORT=3000
 
-# Porta do container (pode ser sobrescrita via variável de ambiente PORT)
+# Porta do container
 EXPOSE 3000
 
 # Diretório de execução

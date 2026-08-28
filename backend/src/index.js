@@ -4,6 +4,7 @@ import cookieParser from 'cookie-parser';
 import morgan from 'morgan';
 import dotenv from 'dotenv';
 import path from 'path';
+import fs from 'fs';
 import { fileURLToPath } from 'url';
 
 import { initDatabase, pool } from './config/db.js';
@@ -33,8 +34,10 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
-// Servir arquivos estáticos do Frontend
-const frontendPath = path.resolve(__dirname, '../../frontend');
+// Servir arquivos estáticos do Frontend (React build / dist)
+const distPath = path.resolve(__dirname, '../../frontend/dist');
+const fallbackFrontendPath = path.resolve(__dirname, '../../frontend');
+const frontendPath = fs.existsSync(distPath) ? distPath : fallbackFrontendPath;
 app.use(express.static(frontendPath));
 
 // Endpoint de verificação de integridade (Healthcheck)
