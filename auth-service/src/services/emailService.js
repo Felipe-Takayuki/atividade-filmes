@@ -4,12 +4,42 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 /**
- * Cria e configura o transporte de e-mail SMTP.
- * Suporta Mailtrap (Dev) e Brevo / Provedores SMTP genéricos (Prod).
+ * Utilitário para extrair nome e e-mail de strings no formato "Nome <email@dominio.com>" ou "email@dominio.com".
+ */
+function parseFromAddress(fromStr) {
+  if (!fromStr) {
+    return { name: 'Catálogo Filmes', email: 'noreply@catalogofilmes.com' };
+  }
+  const match = fromStr.match(/^(?:(?:"?([^"]*)"?\s*)?<([^>]+)>|([^<]+))$/);
+  if (match) {
+    const name = (match[1] || match[3] || 'Catálogo Filmes').trim();
+    const email = (match[2] || match[3] || '').trim();
+    return { name, email };
+  }
+  return { name: 'Catálogo Filmes', email: fromStr.trim() };
+}
+
+/**
+ * Resolve o remetente padrão para a Brevo.
+ * Na Brevo, o remetente DEVE ser um e-mail verificado no painel da conta.
+ */
+function getResolvedFromAddress() {
+  if (process.env.SMTP_FROM && !process.env.SMTP_FROM.includes('.local')) {
+    return process.env.SMTP_FROM;
+  }
+  // Se SMTP_USER for um e-mail válido (login da conta Brevo), usa-o como remetente automático
+  if (process.env.SMTP_USER && process.env.SMTP_USER.includes('@') && !process.env.SMTP_USER.endsWith('@smtp-brevo.com')) {
+    return `Catálogo Filmes <${process.env.SMTP_USER}>`;
+  }
+  return process.env.SMTP_FROM || 'Catálogo Filmes <noreply@catalogofilmes.com>';
+}
+
+/**
+ * Cria e configura o transporte de e-mail SMTP via Brevo (smtp-relay.brevo.com).
  */
 function createTransporter() {
-  const host = process.env.SMTP_HOST || 'sandbox.smtp.mailtrap.io';
-  const port = parseInt(process.env.SMTP_PORT || '2525', 10);
+  const host = process.env.SMTP_HOST || 'smtp-relay.brevo.com';
+  const port = parseInt(process.env.SMTP_PORT || '587', 10);
   const user = process.env.SMTP_USER;
   const pass = process.env.SMTP_PASS;
 
@@ -19,14 +49,65 @@ function createTransporter() {
     host,
     port,
     secure: isSecure,
-    auth: user && pass ? { user, pass } : undefined
+    auth: user && pass ? { user, pass } : undefined,
+    tls: {
+      rejectUnauthorized: process.env.NODE_ENV === 'production'
+    }
   };
 
   return nodemailer.createTransport(transportConfig);
 }
 
 /**
+ * Envia e-mail diretamente via API REST da Brevo (HTTPS porta 443).
+ * Útil quando portas SMTP (587/465) estão bloqueadas na hospedagem ou pelo provedor.
+ */
+async function sendViaBrevoApi({ toEmail, userName, resetLink, htmlContent, textContent, apiKey, fromAddress }) {
+  const sender = parseFromAddress(fromAddress);
+  const endpoint = 'https://api.brevo.com/v3/smtp/email';
+
+  const response = await fetch(endpoint, {
+    method: 'POST',
+    headers: {
+      'accept': 'application/json',
+      'api-key': apiKey,
+      'content-type': 'application/json'
+    },
+    body: JSON.stringify({
+      sender: {
+        name: sender.name,
+        email: sender.email
+      },
+      to: [
+        {
+          email: toEmail,
+          name: userName || toEmail
+        }
+      ],
+      subject: '🔑 Recuperação de Senha — Catálogo de Filmes Tom Hanks',
+      htmlContent,
+      textContent
+    })
+  });
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const errorMsg = data.message || `Status HTTP ${response.status}`;
+    throw new Error(`Erro na API Brevo: ${errorMsg}`);
+  }
+
+  console.log(`[Auth-Email] E-mail de recuperação enviado com sucesso via Brevo API para ${toEmail}. MessageId: ${data.messageId}`);
+  return {
+    success: true,
+    messageId: data.messageId,
+    resetLink,
+    provider: 'Brevo (REST API)'
+  };
+}
+
+/**
  * Envia o e-mail transacional com o link de recuperação de senha.
+ * Prioriza Brevo via SMTP (Nodemailer) e suporta envio via Brevo REST API como alternativa/fallback.
  * 
  * @param {Object} params
  * @param {string} params.toEmail - E-mail do destinatário
@@ -37,7 +118,7 @@ function createTransporter() {
 export async function sendPasswordResetEmail({ toEmail, userName, resetToken }) {
   const appUrl = (process.env.APP_URL || 'http://localhost:3000').replace(/\/+$/, '');
   const resetLink = `${appUrl}/#reset-token=${resetToken}`;
-  const fromAddress = process.env.SMTP_FROM || 'Catálogo Filmes <noreply@catalogofilmes.local>';
+  const fromAddress = getResolvedFromAddress();
 
   const htmlContent = `
   <!DOCTYPE html>
@@ -105,6 +186,30 @@ Atenção: Este link expira em 30 minutos e só pode ser utilizado uma única ve
 Se você não solicitou a alteração de senha, ignore esta mensagem.
   `.trim();
 
+  // Detecta se foi configurada a chave de API da Brevo
+  const brevoApiKey = process.env.BREVO_API_KEY || (process.env.SMTP_PASS && process.env.SMTP_PASS.startsWith('xkeysib-') ? process.env.SMTP_PASS : null);
+  const useBrevoApi = Boolean(process.env.BREVO_USE_API === 'true' || (brevoApiKey && !process.env.SMTP_USER));
+
+  // 1. Envio via Brevo REST API se explicitamente configurado ou sem usuário SMTP
+  if (useBrevoApi && brevoApiKey) {
+    try {
+      return await sendViaBrevoApi({
+        toEmail,
+        userName,
+        resetLink,
+        htmlContent,
+        textContent,
+        apiKey: brevoApiKey,
+        fromAddress
+      });
+    } catch (apiErr) {
+      console.error(`[Auth-Email] Falha ao enviar via Brevo API:`, apiErr.message);
+      console.log(`[Auth-Email] [DEBUG / FALLBACK] Link de recuperação gerado: ${resetLink}`);
+      throw apiErr;
+    }
+  }
+
+  // 2. Envio via Brevo SMTP (Nodemailer)
   const transporter = createTransporter();
 
   try {
@@ -116,16 +221,41 @@ Se você não solicitou a alteração de senha, ignore esta mensagem.
       html: htmlContent
     });
 
-    console.log(`[Auth-Email] E-mail de recuperação enviado para ${toEmail}. MessageId: ${info.messageId}`);
+    console.log(`[Auth-Email] E-mail de recuperação enviado para ${toEmail} via Brevo SMTP (${process.env.SMTP_HOST || 'smtp-relay.brevo.com'}). MessageId: ${info.messageId}`);
     return {
       success: true,
       messageId: info.messageId,
-      resetLink
+      resetLink,
+      provider: 'Brevo (SMTP)'
     };
   } catch (err) {
-    console.error(`[Auth-Email] Falha ao enviar e-mail via SMTP (${process.env.SMTP_HOST || 'Mailtrap'}):`, err.message);
+    console.error(`[Auth-Email] Falha ao enviar e-mail via Brevo SMTP (${process.env.SMTP_HOST || 'smtp-relay.brevo.com'}):`, err.message);
+
+    // Tentativa automática de fallback para a API Brevo se houver chave disponível
+    if (brevoApiKey && !useBrevoApi) {
+      console.log('[Auth-Email] Tentando envio de contingência via Brevo REST API...');
+      try {
+        return await sendViaBrevoApi({
+          toEmail,
+          userName,
+          resetLink,
+          htmlContent,
+          textContent,
+          apiKey: brevoApiKey,
+          fromAddress
+        });
+      } catch (fallbackErr) {
+        console.error('[Auth-Email] Contingência Brevo API também falhou:', fallbackErr.message);
+      }
+    }
+
     console.log(`[Auth-Email] [DEBUG / FALLBACK] Link de recuperação gerado: ${resetLink}`);
-    // Lança erro para informar que houve problema no envio real de e-mail
-    throw new Error(`Falha no envio de e-mail: ${err.message}`);
+    
+    // Alerta específico sobre remetente não validado na Brevo
+    if (err.message && (err.message.includes('550') || err.message.includes('Sender'))) {
+      console.error('[Auth-Email] [Dica Brevo] Certifique-se de que o remetente (SMTP_FROM) é um e-mail validado no painel da sua conta Brevo.');
+    }
+
+    throw new Error(`Falha no envio de e-mail via Brevo: ${err.message}`);
   }
 }

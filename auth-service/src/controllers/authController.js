@@ -180,11 +180,11 @@ export async function getUserRole(req, res) {
 }
 
 // ==============================================================================
-// 2. RECUPERAÇÃO E REDEFINIÇÃO DE SENHA (SMTP Mailtrap / Brevo)
+// 2. RECUPERAÇÃO E REDEFINIÇÃO DE SENHA (Brevo SMTP / API)
 // ==============================================================================
 
 /**
- * 1. Esqueci Minha Senha — Gera token de 30 minutos e envia e-mail real via SMTP
+ * 1. Esqueci Minha Senha — Gera token de 30 minutos e envia e-mail real via Brevo
  * Rota: POST /forgot-password
  */
 export async function forgotPassword(req, res) {
@@ -221,7 +221,7 @@ export async function forgotPassword(req, res) {
       [resetToken, user.id]
     );
 
-    // Envia o e-mail real via Mailtrap/Brevo
+    // Envia o e-mail real via Brevo
     await sendPasswordResetEmail({
       toEmail: user.email,
       userName: user.nome,

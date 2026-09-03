@@ -31,7 +31,7 @@ app.get('/health', async (req, res) => {
     dbStatus = `error: ${err.message}`;
   }
 
-  const smtpConfigured = Boolean(process.env.SMTP_USER && process.env.SMTP_PASS);
+  const smtpConfigured = Boolean((process.env.SMTP_USER && process.env.SMTP_PASS) || process.env.BREVO_API_KEY);
 
   res.json({
     service: 'auth-service (password-reset)',
@@ -39,9 +39,10 @@ app.get('/health', async (req, res) => {
     timestamp: new Date().toISOString(),
     database: dbStatus,
     smtp: {
+      provider: 'Brevo',
       configured: smtpConfigured,
-      host: process.env.SMTP_HOST || 'sandbox.smtp.mailtrap.io',
-      port: process.env.SMTP_PORT || '2525'
+      host: process.env.SMTP_HOST || 'smtp-relay.brevo.com',
+      port: process.env.SMTP_PORT || '587'
     }
   });
 });

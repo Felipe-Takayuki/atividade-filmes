@@ -13,7 +13,7 @@
     "microservice",
     "jwt",
     "mariadb",
-    "mailtrap",
+    "brevo",
     "nodemailer"
   ],
   "author": "",
