@@ -19,7 +19,7 @@ export function ForgotPasswordForm() {
       const data = await forgotPassword(cleanEmail);
       showAlert(
         data.message ||
-          'E-mail de recuperação enviado com sucesso! Verifique sua caixa de entrada no Mailtrap (link válido por 30 minutos).',
+          'E-mail de recuperação enviado com sucesso! Verifique sua caixa de entrada (link válido por 30 minutos).',
         'success'
       );
       setEmail('');
@@ -36,7 +36,7 @@ export function ForgotPasswordForm() {
         <h3 className="form-box-title">Recuperar Senha</h3>
         <p className="form-box-desc">
           Informe seu e-mail cadastrado. Enviaremos um link de redefinição com validade de{' '}
-          <strong>30 minutos</strong> via Mailtrap.
+          <strong>30 minutos</strong> via Brevo.
         </p>
       </div>
 
@@ -63,7 +63,7 @@ export function ForgotPasswordForm() {
         className="btn btn-primary btn-block"
         disabled={submitting}
       >
-        <span>{submitting ? 'Enviando e-mail via Mailtrap...' : 'Enviar Link de Recuperação'}</span>
+        <span>{submitting ? 'Enviando e-mail via Brevo...' : 'Enviar Link de Recuperação'}</span>
       </button>
 
       <div className="form-footer-action">
