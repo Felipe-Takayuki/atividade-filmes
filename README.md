@@ -32,7 +32,7 @@ O container do **`catálogo`** atua como único ponto de entrada público para o
                                                              ▼
                                                  ┌───────────────────────┐
                                                  │     SMTP Externo      │
-                                                 │   Mailtrap / Brevo    │
+                                                 │         Brevo         │
                                                  └───────────────────────┘
 ```
 
@@ -94,11 +94,12 @@ services:
       - DB_NAME=${DB_NAME:-catalogo_filmes}
       - JWT_SECRET=${JWT_SECRET:-chave_jwt_secreta_local_dev}
       - APP_URL=${APP_URL:-http://localhost:3000}
-      - SMTP_HOST=${SMTP_HOST:-sandbox.smtp.mailtrap.io}
-      - SMTP_PORT=${SMTP_PORT:-2525}
+      - SMTP_HOST=${SMTP_HOST:-smtp-relay.brevo.com}
+      - SMTP_PORT=${SMTP_PORT:-587}
       - SMTP_USER=${SMTP_USER:-}
       - SMTP_PASS=${SMTP_PASS:-}
-      - SMTP_FROM=${SMTP_FROM:-Catálogo Filmes <noreply@catalogofilmes.local>}
+      - SMTP_FROM=${SMTP_FROM:-Catálogo Filmes <noreply@catalogofilmes.com>}
+      - BREVO_API_KEY=${BREVO_API_KEY:-}
     networks:
       - app-network
     restart: unless-stopped
@@ -130,16 +131,16 @@ networks:
 
 ## 📸 Demonstração Prática dos Fluxos
 
-### 1. Fluxo Completo de Esqueci a Senha (Pedido → E-mail Mailtrap → Link Usado → Senha Trocada)
+### 1. Fluxo Completo de Esqueci a Senha (Pedido → E-mail Brevo → Link Usado → Senha Trocada)
 
 O fluxo de recuperação de senha segue um ciclo completo e seguro:
 1. **Pedido**: O usuário acessa a aba *"Recuperar Senha"* no Catálogo e informa seu e-mail cadastrado (`ftanaka91@gmail.com`).
 2. **Geração Segura**: O `auth-service` gera um token criptográfico aleatório de 32 bytes (64 caracteres hexadecimais), grava na tabela `reset_tokens` com validade estrita de 30 minutos (`DATE_ADD(NOW(), INTERVAL 30 MINUTE)`) e status `usado = FALSE`.
-3. **E-mail Recebido (Mailtrap)**: O e-mail transacional é enviado via SMTP para a sandbox do Mailtrap contendo o botão estilizado *"Redefinir Minha Senha"* apontando para o link único `/#reset-token=<token>`.
+3. **E-mail Recebido (Brevo)**: O e-mail transacional é enviado via Brevo (SMTP ou API REST) para o e-mail real do usuário contendo o botão estilizado *"Redefinir Minha Senha"* apontando para o link único `/#reset-token=<token>`.
 4. **Link Usado e Validado**: Ao abrir o link, o frontend consulta o `auth-service` (`GET /api/auth/verify-reset-token/:token`), que confirma que o token é válido, pertence ao usuário e ainda não expirou, exibindo a mensagem: *"Link verificado com sucesso! Digite sua nova senha abaixo."*
 5. **Senha Trocada**: O usuário digita a nova senha, que é criptografada com `bcrypt` (10 rounds de salt) no MariaDB, o token é marcado como `usado = TRUE` para prevenir reutilização e o acesso é liberado com sucesso.
 
-![Fluxo Completo de Recuperação de Senha: E-mail no Mailtrap e Redefinição no Catálogo](docs/Group%203.png)
+![Fluxo Completo de Recuperação de Senha: E-mail e Redefinição no Catálogo](docs/Group%203.png)
 
 ---
 
@@ -240,7 +241,7 @@ CREATE TABLE IF NOT EXISTS comentarios (
 │       ├── controllers/authController.js # Lógica de login, cadastro, roles e recuperação
 │       ├── middleware/auth.js        # Geração e validação de tokens JWT
 │       ├── routes/authRoutes.js      # Endpoints /forgot-password, /verify-reset-token, etc.
-│       ├── services/emailService.js  # Envio de e-mail via Nodemailer (Mailtrap/Brevo)
+│       ├── services/emailService.js  # Envio de e-mail via Brevo (SMTP / REST API)
 │       └── index.js                  # Inicialização do auth-service (porta 4000 interna)
 │
 ├── backend/                          # 🎬 Backend do Catálogo (Proxy, TMDB, Favoritos, Comentários)
@@ -263,11 +264,11 @@ CREATE TABLE IF NOT EXISTS comentarios (
 │
 ├── docs/                             # 📸 Evidências Visuais e Capturas de Tela
 │   ├── Group 2.png                   # Print: Tentativas recusadas (Token expirado e Token já usado)
-│   └── Group 3.png                   # Print: Fluxo completo (E-mail no Mailtrap e Senha redefinida)
+│   └── Group 3.png                   # Print: Fluxo completo (E-mail de Recuperação e Senha redefinida)
 │
 ├── Dockerfile                        # Build do container do Catálogo
 ├── docker-compose.yml                # Orquestração dos 2 microsserviços na rede app-network
-├── .env.example                      # Modelo de variáveis de ambiente com Mailtrap
+├── .env.example                      # Modelo de variáveis de ambiente com Brevo
 └── README.md                         # Documentação completa
 ```
 
@@ -289,11 +290,12 @@ Crie seu arquivo `.env` baseado no `.env.example`:
 | `DB_PASSWORD` | Senha do MariaDB | `alunosenha` |
 | `DB_NAME` | Nome da base de dados | `catalogo_filmes` |
 | `JWT_SECRET` | Chave secreta de assinatura dos tokens JWT | `chave_jwt_secreta_local_dev` |
-| `SMTP_HOST` | Host do serviço SMTP (**Mailtrap** em dev) | `sandbox.smtp.mailtrap.io` |
-| `SMTP_PORT` | Porta SMTP do Mailtrap | `2525` ou `587` |
-| `SMTP_USER` | Usuário do Mailtrap Sandbox | `seu_usuario_mailtrap` |
-| `SMTP_PASS` | Senha do Mailtrap Sandbox | `sua_senha_mailtrap` |
-| `SMTP_FROM` | Remetente do e-mail de recuperação | `Catálogo Filmes <noreply@catalogofilmes.local>` |
+| `SMTP_HOST` | Host do serviço SMTP da **Brevo** | `smtp-relay.brevo.com` |
+| `SMTP_PORT` | Porta SMTP da Brevo (STARTTLS) | `587` |
+| `SMTP_USER` | Login SMTP / E-mail da conta Brevo | `seu_email_brevo` |
+| `SMTP_PASS` | Chave SMTP da Brevo (`xsmtpsib-...`) | `sua_chave_smtp_brevo` |
+| `SMTP_FROM` | Remetente validado na conta Brevo | `Catálogo Filmes <seu_email_verificado@dominio.com>` |
+| `BREVO_API_KEY` | *(Opcional)* Chave de API REST da Brevo | `xkeysib-...` |
 
 ---
 
@@ -301,7 +303,7 @@ Crie seu arquivo `.env` baseado no `.env.example`:
 
 ### Pré-requisitos
 - Docker e Docker Compose instalados
-- Uma conta gratuita no [Mailtrap.io](https://mailtrap.io) (para testar o recebimento dos e-mails na sandbox)
+- Uma conta gratuita na [Brevo](https://www.brevo.com) (para envio real de e-mails transacionais via SMTP ou API)
 - Uma chave gratuita de API no [TMDB](https://www.themoviedb.org/settings/api)
 
 ### Passo a Passo
@@ -310,7 +312,7 @@ Crie seu arquivo `.env` baseado no `.env.example`:
    ```bash
    cp .env.example .env
    ```
-   Edite o arquivo `.env` e preencha `TMDB_API_KEY`, `SMTP_USER` e `SMTP_PASS`.
+   Edite o arquivo `.env` e preencha `TMDB_API_KEY`, `SMTP_USER` e `SMTP_PASS` (ou `BREVO_API_KEY`).
 
 2. **Subir os Microsserviços**:
    ```bash
