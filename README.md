@@ -322,3 +322,138 @@ Crie seu arquivo `.env` baseado no `.env.example`:
 3. **Acessar a Aplicação**:
    Abra no seu navegador: `http://localhost:3000`
 
+---
+
+## 🛡️ Atividade 4 — Controle de Acesso por Papel (RBAC)
+
+> Implementação de **Role-Based Access Control (RBAC)** conforme as diretrizes da **Atividade 4** da disciplina **ISW055** (Professor Allan Siriani).
+
+### 📋 Requisito 1 — Matriz de Permissões por Papel
+
+A aplicação implementa dois papéis fundamentais de usuário:
+- **`usuario`**: Usuário comum da plataforma (criado por padrão no cadastro).
+- **`admin`**: Administrador da plataforma com privilégios de moderação e auditoria.
+
+| Recurso / Entidade | Ação HTTP | Rota da API | Papel `usuario` | Papel `admin` | Regra de Negócio |
+|---|---|---|:---:|:---:|---|
+| **Catálogo de Filmes** | `GET` | `/api/movies` | ✅ Permitido | ✅ Permitido | Todos os usuários autenticados podem navegar pelo catálogo. |
+| **Detalhes do Filme** | `GET` | `/api/movies/:id` | ✅ Permitido | ✅ Permitido | Todos os usuários autenticados podem ver sinopse e detalhes. |
+| **Comentários do Filme** | `GET` | `/api/movies/:id/comments` | ✅ Permitido | ✅ Permitido | **Visibilidade pública:** Todos os usuários podem ler todos os comentários de todos os usuários. |
+| **Novo Comentário** | `POST` | `/api/movies/:id/comments` | ✅ Permitido | ✅ Permitido | Qualquer usuário autenticado pode postar um comentário. |
+| **Excluir Próprio Comentário** | `DELETE` | `/api/comments/:id` | ✅ Permitido | ✅ Permitido | O autor original do comentário tem permissão para apagá-lo. |
+| **Excluir Comentário Alheio (Moderação)** | `DELETE` | `/api/comments/:id` | ❌ **Negado (403)** | ✅ **Permitido** | **Ação exclusiva de Admin:** Apenas moderadores podem remover comentários de outros usuários. |
+| **Lista de Favoritos** | `GET` | `/api/favorites` | ✅ Apenas próprios | ✅ Apenas próprios | Cada usuário acessa apenas seus filmes favoritados. |
+| **Adicionar Favorito** | `POST` | `/api/favorites` | ✅ Apenas próprios | ✅ Apenas próprios | Adiciona filme à lista pessoal de favoritos. |
+| **Remover Favorito** | `DELETE` | `/api/favorites/:id` | ✅ Apenas próprios | ✅ Apenas próprios | Remove filme da lista pessoal de favoritos. |
+| **Perfil / Consulta /me** | `GET` | `/api/auth/me` | ✅ Apenas próprio | ✅ Apenas próprio | Retorna dados cadastrais e o papel (`role`) do usuário. |
+| **Autorização Centralizada** | `POST` | `/api/auth/authorize` | ✅ Permitido | ✅ Permitido | Endpoint de enforcement do RBAC consultado entre microsserviços. |
+
+> 🔒 **Segurança no Cadastro (Proteção contra Mass Assignment):**  
+> O registro público (`POST /api/auth/register`) define **sempre e obrigatoriamente** o papel `usuario` para novos cadastros. O sistema não aceita atribuição arbitrária de `admin` via payload do cliente. A promoção para administrador é realizada de forma controlada no MariaDB:
+> ```sql
+> UPDATE usuarios SET role = 'admin' WHERE email = 'seu_email@exemplo.com';
+> ```
+
+---
+
+### 👑 Requisito 2 — Ação Exclusiva de Administrador
+
+* **Funcionalidade Escolhida:** **Moderação Global de Comentários** (Exclusão de comentários de outros usuários).
+* **Regra de Negócio:**
+  1. Todos os usuários têm o direito de ler todos os comentários deixados por qualquer membro da comunidade em qualquer filme do catálogo.
+  2. Qualquer usuário autenticado pode criar seus próprios comentários e excluí-los quando desejar.
+  3. No entanto, se um comentário contiver conteúdo impróprio, spam ou violação das regras, **apenas o usuário com papel `admin`** possui a autoridade para apagá-lo.
+  4. Usuários com papel `usuario` não podem remover comentários feitos por terceiros sob nenhuma hipótese.
+
+---
+
+### 🔒 Requisito 3 — Validação no Backend (HTTP 403 Forbidden)
+
+A validação de segurança é estritamente **aplicada no servidor (backend)** no controller [`backend/src/controllers/commentController.js`](backend/src/controllers/commentController.js), garantindo que mesmo requisições diretas via `curl`, Postman ou scripts automatizados sejam bloqueadas:
+
+1. Ao receber a requisição `DELETE /api/comments/:id`, o backend obtém o comentário no banco de dados e verifica o `usuario_id` do autor.
+2. Se `comment.usuario_id === req.user.id`: a requisição é aceita e o comentário é removido com `HTTP 200 OK`.
+3. Se `comment.usuario_id !== req.user.id`:
+   * O backend aciona o microsserviço de autenticação (`auth-service`) via chamada interna para verificar se o requisitante é `admin`.
+   * Se o papel for diferente de `admin`, a requisição é **imediatamente rejeitada com `HTTP 403 Forbidden`**:
+     ```json
+     {
+       "error": "Acesso proibido. Apenas administradores têm permissão para excluir comentários de outros usuários.",
+       "code": "FORBIDDEN_NOT_ADMIN"
+     }
+     ```
+   * Se o papel for `admin`, a moderação é autorizada e executada com sucesso (`HTTP 200 OK`).
+
+#### Exemplo de Teste no Backend (cURL):
+
+* **Tentativa não autorizada por usuário comum (HTTP 403):**
+  ```bash
+  curl -X DELETE http://localhost:3000/api/comments/1 \
+    -H "Authorization: Bearer <TOKEN_DE_USUARIO_COMUM>"
+  ```
+  **Resposta:**
+  ```http
+  HTTP/1.1 403 Forbidden
+  Content-Type: application/json
+
+  {
+    "error": "Acesso proibido. Apenas administradores têm permissão para excluir comentários de outros usuários.",
+    "code": "FORBIDDEN_NOT_ADMIN"
+  }
+  ```
+
+* **Exclusão administrativa por Admin (HTTP 200):**
+  ```bash
+  curl -X DELETE http://localhost:3000/api/comments/1 \
+    -H "Authorization: Bearer <TOKEN_DE_ADMIN>"
+  ```
+  **Resposta:**
+  ```http
+  HTTP/1.1 200 OK
+  Content-Type: application/json
+
+  {
+    "success": true,
+    "message": "Comentário de outro usuário removido com sucesso por moderação de administrador."
+  }
+  ```
+
+---
+
+### 💻 Requisito 4 — Interface Reflete as Permissões
+
+A interface React ([`CommentsModal.jsx`](frontend/src/components/catalog/CommentsModal.jsx)) adapta-se dinamicamente conforme o papel (`role`) e a autoria dos comentários:
+
+1. **Visibilidade Comunitária:** Todos os comentários exibem o nome do autor (`👤 Nome do Usuário`), a badge de papel (`admin` em dourado ou `usuario` em azul) e a data de criação.
+2. **Indicação de Autoria:** Comentários do próprio usuário logado recebem a tag azul `Você`.
+3. **Botão de Exclusão do Próprio Autor:** Usuários comuns visualizam o botão de lixeira **apenas nos seus próprios comentários**. Comentários de outros usuários são exibidos sem o botão de exclusão.
+4. **Botão de Moderação de Administrador:** Quando um usuário com papel `admin` abre o modal, o botão de exclusão é exibido em **todos os comentários**. Para comentários de outros usuários, o botão possui estilização distinta (borda e ícone em amarelo/âmbar) e tooltip explicativo: *"Moderação de Administrador: Excluir comentário de outro usuário"*, além de caixa de diálogo de confirmação específica de moderação.
+5. **Tratamento de Erros:** Caso ocorra qualquer resposta `403 Forbidden` (ex: tentativa manipulada ou perda de privilégio), uma notificação toast de erro é apresentada ao usuário.
+
+---
+
+### 💡 Requisito 5 — Pergunta Conceitual: Padrão A vs Padrão B
+
+#### **Qual padrão foi adotado no sistema?**
+O sistema adotou prioritariamente o **Padrão A (Enforcement Centralizado)**, com suporte a fallback das claims do token. Quando uma ação restrita é requisitada (como a exclusão de comentários de terceiros), o serviço de **Catálogo** realiza uma consulta HTTP síncrona diretamente ao microsserviço **`auth-service`** (`GET /users/:id/role` ou `POST /authorize`) para obter o papel atual do usuário no banco de dados em tempo real.
+
+#### **Comparativo: Padrão A vs Padrão B**
+
+| Aspecto | Padrão A (Enforcement Centralizado) | Padrão B (Claims no Token JWT) |
+|---|---|---|
+| **Mecanismo** | O catálogo consulta o `auth-service` via HTTP a cada ação sensível. | O catálogo decodifica a claim `role` diretamente do payload do JWT localmente. |
+| **Tempo de Resposta / Latência** | **Maior**, pois adiciona uma requisição de rede interna entre containers a cada validação. | **Mínimo / Instantâneo**, pois a validação é executada em memória localmente sem I/O de rede. |
+| **Propagação de Mudança de Papel** | **Instantânea**: se um administrador alterar o papel de um usuário no banco, o efeito é imediato na requisição seguinte. | **Diferida**: a alteração só terá efeito quando o token JWT expirar e um novo for emitido pelo usuário. |
+| **Acoplamento / Resiliência** | **Alto acoplamento em tempo de execução**: se o `auth-service` estiver fora do ar, ações sensíveis ficam indisponíveis. | **Desacoplado**: o catálogo continua validando permissões mesmo se o `auth-service` estiver temporariamente indisponível. |
+| **Sobrecarga no Microsserviço de Auth** | **Alta**: o `auth-service` recebe tráfego proporcional a todas as ações sensíveis do catálogo. | **Baixa**: o `auth-service` só é acionado nos momentos de login e redefinição de credenciais. |
+
+#### **O que mudaria ao migrar para o Padrão B?**
+1. **No `auth-service`:**
+   * O payload do JWT gerado em `authController.js` já inclui `{ id, nome, email, role }`. Nenhuma alteração estrutural na emissão do token seria necessária.
+2. **No `catálogo` (backend):**
+   * Em vez de fazer uma chamada HTTP interna (`await callAuthService(...)`), o controller de comentários validaria o papel diretamente a partir de `req.user.role`, que já foi verificado e decodificado pelo middleware JWT [`middleware/auth.js`](backend/src/middleware/auth.js).
+3. **Trade-offs da migração:**
+   * **Vantagens ganhas:** Redução drástica da latência de rede nas operações de moderação, eliminação do acoplamento síncrono com o `auth-service` e maior escalabilidade dos serviços.
+   * **Desvantagens introduzidas:** Se um usuário for rebaixado de `admin` para `usuario` ou revogado, ele ainda reteria os privilégios de moderação até que seu token JWT expirasse (a menos que fosse implementada uma lista de revogação/blacklist ou tokens de vida útil muito curta com refresh tokens).
+
+
