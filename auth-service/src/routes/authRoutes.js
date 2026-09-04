@@ -4,6 +4,7 @@ import {
   login,
   me,
   getUserRole,
+  authorize,
   forgotPassword,
   verifyResetToken,
   resetPassword
@@ -17,6 +18,8 @@ router.post('/register', register);
 router.post('/login', login);
 router.get('/me', authenticate, me);
 router.get('/users/:id/role', getUserRole);
+router.post('/authorize', authorize);
+
 
 // 2. Fluxo de Troca / Recuperação de Senha (Esqueci Minha Senha)
 router.post('/forgot-password', forgotPassword);

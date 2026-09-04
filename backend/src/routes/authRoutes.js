@@ -7,7 +7,8 @@ import {
   forgotPassword,
   verifyResetToken,
   resetPassword,
-  getUserRole
+  getUserRole,
+  authorize
 } from '../controllers/authController.js';
 import { authenticate } from '../middleware/auth.js';
 
@@ -23,7 +24,9 @@ router.post('/forgot-password', forgotPassword);
 router.get('/verify-reset-token/:token', verifyResetToken);
 router.post('/reset-password', resetPassword);
 
-// Consulta de papel (role)
+// Consulta de papel (role) e autorização RBAC
 router.get('/users/:id/role', getUserRole);
+router.post('/authorize', authorize);
+
 
 export default router;

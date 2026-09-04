@@ -996,6 +996,18 @@ body {
   transform: scale(0.96);
 }
 
+.btn-delete-comment.admin-moderation {
+  background: rgba(245, 158, 11, 0.12);
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  color: #fbbf24;
+}
+
+.btn-delete-comment.admin-moderation:hover {
+  background: rgba(239, 68, 68, 0.3);
+  border-color: var(--accent-danger);
+  color: #fff;
+}
+
 /* ================= TOAST NOTIFICATIONS ================= */
 .toast-container {
   position: fixed;

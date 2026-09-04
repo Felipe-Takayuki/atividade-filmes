@@ -14,7 +14,7 @@ import { generateToken } from '../middleware/auth.js';
  */
 export async function register(req, res) {
   try {
-    const { nome, email, senha, role } = req.body;
+    const { nome, email, senha } = req.body;
 
     if (!nome || !email || !senha) {
       return res.status(400).json({ error: 'Todos os campos são obrigatórios (nome, email, senha).' });
@@ -25,7 +25,9 @@ export async function register(req, res) {
     }
 
     const emailNorm = email.trim().toLowerCase();
-    const userRole = (role === 'admin') ? 'admin' : 'usuario';
+    // Todo usuário registrado recebe obrigatoriamente o papel 'usuario'.
+    // Privilégios de 'admin' não podem ser auto-atribuídos no registro público.
+    const userRole = 'usuario';
 
     // Verifica duplicidade de e-mail no banco
     const [existing] = await pool.query('SELECT id FROM usuarios WHERE email = ?', [emailNorm]);
@@ -176,6 +178,68 @@ export async function getUserRole(req, res) {
   } catch (err) {
     console.error('[Auth-Service] Erro ao consultar papel do usuário:', err);
     return res.status(500).json({ error: 'Erro interno ao consultar papel do usuário.' });
+  }
+}
+
+/**
+ * Validação centralizada de autorização / permissão RBAC (Padrão A)
+ * Rota: POST /authorize ou POST /api/auth/authorize
+ * Body: { userId, requiredRole, action }
+ */
+export async function authorize(req, res) {
+  try {
+    const { userId, requiredRole, action } = req.body;
+    const uid = parseInt(userId, 10);
+
+    if (isNaN(uid)) {
+      return res.status(400).json({ authorized: false, error: 'userId obrigatório e deve ser numérico.' });
+    }
+
+    const [rows] = await pool.query(
+      'SELECT id, nome, email, role FROM usuarios WHERE id = ?',
+      [uid]
+    );
+
+    if (rows.length === 0) {
+      return res.status(404).json({ authorized: false, error: 'Usuário não encontrado.' });
+    }
+
+    const user = rows[0];
+    const role = user.role || 'usuario';
+
+    // 1. Validação por papel exigido (ex: requiredRole = 'admin')
+    if (requiredRole && role !== requiredRole) {
+      return res.status(403).json({
+        authorized: false,
+        userId: user.id,
+        role,
+        requiredRole,
+        action,
+        error: `Acesso proibido. Esta ação requer permissão de ${requiredRole}.`
+      });
+    }
+
+    // 2. Validação por ação específica de moderação
+    if (action === 'delete:other-comment' && role !== 'admin') {
+      return res.status(403).json({
+        authorized: false,
+        userId: user.id,
+        role,
+        action,
+        error: 'Acesso proibido. Apenas administradores podem excluir comentários de outros usuários.'
+      });
+    }
+
+    return res.json({
+      authorized: true,
+      userId: user.id,
+      nome: user.nome,
+      role,
+      action: action || 'authorized'
+    });
+  } catch (err) {
+    console.error('[Auth-Service] Erro em authorize:', err);
+    return res.status(500).json({ authorized: false, error: 'Erro interno ao validar autorização.' });
   }
 }
 

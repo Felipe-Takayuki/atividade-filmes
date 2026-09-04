@@ -7,7 +7,7 @@ const AUTH_SERVICE_URL = (process.env.AUTH_SERVICE_URL || 'http://auth-service:4
 /**
  * Função auxiliar para realizar chamadas HTTP internas para o microsserviço de autenticação.
  */
-async function callAuthService(endpoint, options = {}) {
+export async function callAuthService(endpoint, options = {}) {
   const url = `${AUTH_SERVICE_URL}${endpoint}`;
   try {
     const response = await fetch(url, {
@@ -43,9 +43,10 @@ async function callAuthService(endpoint, options = {}) {
  * Rota: POST /api/auth/register
  */
 export async function register(req, res) {
+  const { nome, email, senha } = req.body;
   const { status, data } = await callAuthService('/register', {
     method: 'POST',
-    body: JSON.stringify(req.body)
+    body: JSON.stringify({ nome, email, senha })
   });
 
   if (data?.token) {
@@ -108,6 +109,19 @@ export async function getUserRole(req, res) {
   const { id } = req.params;
   const { status, data } = await callAuthService(`/users/${id}/role`, {
     method: 'GET'
+  });
+
+  return res.status(status).json(data);
+}
+
+/**
+ * Encaminha validação centralizada de permissão ao auth-service (Padrão A)
+ * Rota: POST /api/auth/authorize
+ */
+export async function authorize(req, res) {
+  const { status, data } = await callAuthService('/authorize', {
+    method: 'POST',
+    body: JSON.stringify(req.body)
   });
 
   return res.status(status).json(data);

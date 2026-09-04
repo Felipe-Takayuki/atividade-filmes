@@ -21,10 +21,9 @@ export async function listMovies(req, res) {
     );
     const favoriteMovieIds = new Set(favRows.map((r) => r.tmdb_movie_id));
 
-    // 3. Busca contagem de comentários do usuário logado no MariaDB
+    // 3. Busca contagem de comentários de todos os usuários no MariaDB
     const [comRows] = await pool.query(
-      'SELECT tmdb_movie_id, COUNT(*) as total FROM comentarios WHERE usuario_id = ? GROUP BY tmdb_movie_id',
-      [userId]
+      'SELECT tmdb_movie_id, COUNT(*) as total FROM comentarios GROUP BY tmdb_movie_id'
     );
     const commentCountMap = new Map();
     for (const row of comRows) {
@@ -77,10 +76,15 @@ export async function getMovieById(req, res) {
       [userId, movieId]
     );
 
-    // Busca comentários deste usuário para este filme
+    // Busca comentários de todos os usuários para este filme (com autor e role)
     const [commentRows] = await pool.query(
-      'SELECT id, texto, criado_em FROM comentarios WHERE usuario_id = ? AND tmdb_movie_id = ? ORDER BY criado_em DESC',
-      [userId, movieId]
+      `SELECT c.id, c.usuario_id, c.tmdb_movie_id, c.texto, c.criado_em,
+              u.nome as usuario_nome, u.role as usuario_role
+       FROM comentarios c
+       JOIN usuarios u ON c.usuario_id = u.id
+       WHERE c.tmdb_movie_id = ?
+       ORDER BY c.criado_em DESC`,
+      [movieId]
     );
 
     return res.json({
