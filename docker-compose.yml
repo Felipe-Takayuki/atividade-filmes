@@ -55,6 +55,9 @@ services:
       - SMTP_PASS=${SMTP_PASS:-}
       - SMTP_FROM=${SMTP_FROM:-Catálogo Filmes <noreply@catalogofilmes.com>}
       - BREVO_API_KEY=${BREVO_API_KEY:-}
+      - BREVO_SENDER_EMAIL=${BREVO_SENDER_EMAIL:-}
+      - BREVO_USE_API=${BREVO_USE_API:-}
+      - RESEND_API_KEY=${RESEND_API_KEY:-}
     networks:
       - app-network
     restart: unless-stopped

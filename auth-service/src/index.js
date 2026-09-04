@@ -2,10 +2,18 @@ import express from 'express';
 import cors from 'cors';
 import morgan from 'morgan';
 import dotenv from 'dotenv';
+import fs from 'fs';
+import path from 'path';
 import { initDatabase, pool } from './config/db.js';
 import authRoutes from './routes/authRoutes.js';
 
 dotenv.config();
+if (!process.env.SMTP_USER && !process.env.BREVO_API_KEY && !process.env.SMTP_PASS) {
+  const rootEnv = path.resolve(process.cwd(), '../.env');
+  if (fs.existsSync(rootEnv)) {
+    dotenv.config({ path: rootEnv });
+  }
+}
 
 const app = express();
 const PORT = parseInt(process.env.PORT || '4000', 10);
@@ -31,16 +39,40 @@ app.get('/health', async (req, res) => {
     dbStatus = `error: ${err.message}`;
   }
 
-  const smtpConfigured = Boolean((process.env.SMTP_USER && process.env.SMTP_PASS) || process.env.BREVO_API_KEY);
+  const pass = process.env.SMTP_PASS?.trim();
+  const resendApiKey = process.env.RESEND_API_KEY?.trim() || (pass && pass.startsWith('re_') ? pass : null);
+  const brevoApiKey = process.env.BREVO_API_KEY?.trim() || (pass && pass.startsWith('xkeysib-') ? pass : null);
+  const configured = Boolean((process.env.SMTP_USER && process.env.SMTP_PASS) || brevoApiKey || resendApiKey);
+  
+  let provider = 'SMTP';
+  let emailMode = 'SMTP';
+  if (resendApiKey) {
+    provider = 'Resend';
+    emailMode = 'REST API';
+  } else if (brevoApiKey) {
+    provider = 'Brevo';
+    emailMode = 'REST API';
+  } else if (process.env.SMTP_HOST?.includes('gmail')) {
+    provider = 'Gmail';
+  } else if (process.env.SMTP_HOST?.includes('brevo')) {
+    provider = 'Brevo';
+  }
 
   res.json({
     service: 'auth-service (password-reset)',
     status: 'ok',
     timestamp: new Date().toISOString(),
     database: dbStatus,
+    email: {
+      provider,
+      configured,
+      mode: emailMode,
+      host: process.env.SMTP_HOST || (resendApiKey ? 'api.resend.com' : 'smtp-relay.brevo.com'),
+      port: process.env.SMTP_PORT || '587'
+    },
     smtp: {
-      provider: 'Brevo',
-      configured: smtpConfigured,
+      provider,
+      configured,
       host: process.env.SMTP_HOST || 'smtp-relay.brevo.com',
       port: process.env.SMTP_PORT || '587'
     }
