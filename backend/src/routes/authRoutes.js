@@ -25,9 +25,9 @@ router.post('/forgot-password', forgotPassword);
 router.get('/verify-reset-token/:token', verifyResetToken);
 router.post('/reset-password', resetPassword);
 
-// Consulta de papel (role) e autorização RBAC
-router.get('/users/:id/role', getUserRole);
-router.post('/authorize', authorize);
+// Consulta de papel (role) e autorização RBAC (requer autenticação)
+router.get('/users/:id/role', authenticate, getUserRole);
+router.post('/authorize', authenticate, authorize);
 router.post('/users/promote', authenticate, promoteUserByEmail);
 
 
