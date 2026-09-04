@@ -179,3 +179,47 @@ export async function resetPassword(req, res) {
   return res.status(status).json(data);
 }
 
+/**
+ * Promove um usuário para o papel 'admin' através do e-mail.
+ * Ação exclusiva de Administrador com validação RBAC (Padrão A).
+ * Rota: POST /api/auth/users/promote
+ */
+export async function promoteUserByEmail(req, res) {
+  try {
+    const requesterId = req.user?.id;
+    const requesterRole = req.user?.role;
+    const { email } = req.body;
+
+    if (!requesterId) {
+      return res.status(401).json({ error: 'Usuário não autenticado.' });
+    }
+
+    if (!email || typeof email !== 'string' || !email.trim()) {
+      return res.status(400).json({ error: 'O e-mail do usuário a ser promovido é obrigatório.' });
+    }
+
+    // 1. Verificação preliminar local
+    if (requesterRole !== 'admin') {
+      return res.status(403).json({
+        error: 'Acesso proibido. Apenas administradores têm permissão para promover usuários a admin.',
+        code: 'FORBIDDEN_NOT_ADMIN'
+      });
+    }
+
+    // 2. Enforcement centralizado (Padrão A): consulta o microsserviço auth-service
+    const { status, data } = await callAuthService('/users/promote', {
+      method: 'POST',
+      body: JSON.stringify({
+        email: email.trim().toLowerCase(),
+        requesterId
+      })
+    });
+
+    return res.status(status).json(data);
+  } catch (err) {
+    console.error('[Auth] Erro ao promover usuário por e-mail:', err);
+    return res.status(500).json({ error: 'Erro ao processar promoção de usuário.' });
+  }
+}
+
+

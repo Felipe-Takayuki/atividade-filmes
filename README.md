@@ -347,23 +347,30 @@ A aplicação implementa dois papéis fundamentais de usuário:
 | **Remover Favorito** | `DELETE` | `/api/favorites/:id` | ✅ Apenas próprios | ✅ Apenas próprios | Remove filme da lista pessoal de favoritos. |
 | **Perfil / Consulta /me** | `GET` | `/api/auth/me` | ✅ Apenas próprio | ✅ Apenas próprio | Retorna dados cadastrais e o papel (`role`) do usuário. |
 | **Autorização Centralizada** | `POST` | `/api/auth/authorize` | ✅ Permitido | ✅ Permitido | Endpoint de enforcement do RBAC consultado entre microsserviços. |
+| **Promover Usuário a Admin** | `POST` | `/api/auth/users/promote` | ❌ **Negado (403)** | ✅ **Permitido** | **Ação exclusiva de Admin:** Eleva o papel de outro usuário cadastrado para Administrador informando seu e-mail. |
 
 > 🔒 **Segurança no Cadastro (Proteção contra Mass Assignment):**  
-> O registro público (`POST /api/auth/register`) define **sempre e obrigatoriamente** o papel `usuario` para novos cadastros. O sistema não aceita atribuição arbitrária de `admin` via payload do cliente. A promoção para administrador é realizada de forma controlada no MariaDB:
+> O registro público (`POST /api/auth/register`) define **sempre e obrigatoriamente** o papel `usuario` para novos cadastros. O sistema não aceita atribuição arbitrária de `admin` via payload do cliente. A promoção para administrador pode ser realizada via painel exclusivo de admin (`POST /api/auth/users/promote`) ou diretamente no MariaDB:
 > ```sql
 > UPDATE usuarios SET role = 'admin' WHERE email = 'seu_email@exemplo.com';
 > ```
 
 ---
 
-### 👑 Requisito 2 — Ação Exclusiva de Administrador
+### 👑 Requisito 2 — Ações Exclusivas de Administrador
 
-* **Funcionalidade Escolhida:** **Moderação Global de Comentários** (Exclusão de comentários de outros usuários).
-* **Regra de Negócio:**
-  1. Todos os usuários têm o direito de ler todos os comentários deixados por qualquer membro da comunidade em qualquer filme do catálogo.
-  2. Qualquer usuário autenticado pode criar seus próprios comentários e excluí-los quando desejar.
-  3. No entanto, se um comentário contiver conteúdo impróprio, spam ou violação das regras, **apenas o usuário com papel `admin`** possui a autoridade para apagá-lo.
-  4. Usuários com papel `usuario` não podem remover comentários feitos por terceiros sob nenhuma hipótese.
+A aplicação implementa duas funcionalidades protegidas de alta sensibilidade acessíveis unicamente por usuários com papel `admin`:
+
+1. **Moderação Global de Comentários (Exclusão de comentários de terceiros):**
+   * Todos os usuários autenticados podem postar e excluir seus próprios comentários.
+   * Apenas administradores possuem o privilégio de apagar comentários de outros usuários no catálogo.
+   * Usuários com papel `usuario` recebem `HTTP 403 Forbidden` caso tentem apagar comentários alheios.
+
+2. **Elevação de Nível de Usuários (Promover Usuário a Administrador por E-mail):**
+   * Endpoint: `POST /api/auth/users/promote` (body: `{ "email": "usuario@exemplo.com" }`).
+   * Um usuário comum não pode promover a si mesmo nem a outros usuários (requisições de `usuario` comum são rejeitadas com `HTTP 403 Forbidden`).
+   * Apenas um `admin` autenticado pode submeter o e-mail de outro membro cadastrado para conceder a ele o papel de Administrador.
+   * Na interface, administradores contam com o botão e modal `👑 Promover Admin` na barra de navegação superior.
 
 ---
 

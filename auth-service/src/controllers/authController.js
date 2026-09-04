@@ -243,6 +243,86 @@ export async function authorize(req, res) {
   }
 }
 
+/**
+ * Promove um usuário para o papel 'admin' através do seu e-mail.
+ * Ação exclusiva de Administrador.
+ * Rota: POST /users/promote
+ * Body: { email, requesterId }
+ */
+export async function promoteUserByEmail(req, res) {
+  try {
+    const { email, requesterId } = req.body;
+
+    // 1. Validação do solicitante (deve ser admin)
+    const reqId = parseInt(requesterId, 10);
+    if (isNaN(reqId)) {
+      return res.status(400).json({ error: 'requesterId obrigatório e deve ser numérico.' });
+    }
+
+    const [requesterRows] = await pool.query(
+      'SELECT id, role FROM usuarios WHERE id = ?',
+      [reqId]
+    );
+
+    if (requesterRows.length === 0 || requesterRows[0].role !== 'admin') {
+      return res.status(403).json({
+        error: 'Acesso proibido. Apenas administradores podem promover outros usuários para admin.',
+        code: 'FORBIDDEN_NOT_ADMIN'
+      });
+    }
+
+    // 2. Validação do e-mail do usuário alvo
+    if (!email || typeof email !== 'string' || !email.trim()) {
+      return res.status(400).json({ error: 'O e-mail do usuário a ser promovido é obrigatório.' });
+    }
+
+    const targetEmail = email.trim().toLowerCase();
+
+    // 3. Busca o usuário alvo pelo e-mail
+    const [targetRows] = await pool.query(
+      'SELECT id, nome, email, role FROM usuarios WHERE email = ?',
+      [targetEmail]
+    );
+
+    if (targetRows.length === 0) {
+      return res.status(404).json({
+        error: `Nenhum usuário encontrado com o e-mail '${targetEmail}'.`
+      });
+    }
+
+    const targetUser = targetRows[0];
+
+    // Se já for admin
+    if (targetUser.role === 'admin') {
+      return res.status(400).json({
+        error: `O usuário '${targetUser.nome}' (${targetUser.email}) já possui o papel de Administrador.`
+      });
+    }
+
+    // 4. Atualiza o papel para 'admin' no MariaDB
+    await pool.query(
+      "UPDATE usuarios SET role = 'admin' WHERE id = ?",
+      [targetUser.id]
+    );
+
+    console.log(`[Auth-Service] Administrador (ID: ${reqId}) promoveu usuário '${targetUser.nome}' (${targetUser.email}) para ADMIN.`);
+
+    return res.json({
+      success: true,
+      message: `Usuário '${targetUser.nome}' (${targetUser.email}) foi promovido a Administrador com sucesso!`,
+      user: {
+        id: targetUser.id,
+        nome: targetUser.nome,
+        email: targetUser.email,
+        role: 'admin'
+      }
+    });
+  } catch (err) {
+    console.error('[Auth-Service] Erro ao promover usuário:', err);
+    return res.status(500).json({ error: 'Erro interno ao promover usuário.' });
+  }
+}
+
 // ==============================================================================
 // 2. RECUPERAÇÃO E REDEFINIÇÃO DE SENHA (Brevo SMTP / API)
 // ==============================================================================

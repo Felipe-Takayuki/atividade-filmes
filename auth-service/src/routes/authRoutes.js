@@ -5,6 +5,7 @@ import {
   me,
   getUserRole,
   authorize,
+  promoteUserByEmail,
   forgotPassword,
   verifyResetToken,
   resetPassword
@@ -19,6 +20,7 @@ router.post('/login', login);
 router.get('/me', authenticate, me);
 router.get('/users/:id/role', getUserRole);
 router.post('/authorize', authorize);
+router.post('/users/promote', promoteUserByEmail);
 
 
 // 2. Fluxo de Troca / Recuperação de Senha (Esqueci Minha Senha)

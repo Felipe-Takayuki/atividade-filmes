@@ -147,6 +147,13 @@ export const api = {
     return this.request(`/auth/users/${userId}/role`);
   },
 
+  async promoteUser(email) {
+    return this.request('/auth/users/promote', {
+      method: 'POST',
+      body: JSON.stringify({ email })
+    });
+  },
+
   // ===== MOVIES =====
   async getMovies(forceRefresh = false) {
     const query = forceRefresh ? '?refresh=true' : '';
