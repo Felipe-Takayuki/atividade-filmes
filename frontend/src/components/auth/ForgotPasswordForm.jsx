@@ -36,14 +36,17 @@ export function ForgotPasswordForm() {
         <h3 className="form-box-title">Recuperar Senha</h3>
         <p className="form-box-desc">
           Informe seu e-mail cadastrado. Enviaremos um link de redefinição com validade de{' '}
-          <strong>30 minutos</strong> via Brevo.
+          <strong>30 minutos</strong>.
         </p>
       </div>
 
       <div className="form-group">
         <label htmlFor="forgot-email">Seu E-mail Cadastrado</label>
         <div className="input-wrapper">
-          <span className="input-icon">✉️</span>
+          <svg className="input-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
+            <polyline points="22,6 12,13 2,6" />
+          </svg>
           <input
             type="email"
             id="forgot-email"
@@ -63,7 +66,7 @@ export function ForgotPasswordForm() {
         className="btn btn-primary btn-block"
         disabled={submitting}
       >
-        <span>{submitting ? 'Enviando e-mail via Brevo...' : 'Enviar Link de Recuperação'}</span>
+        <span>{submitting ? 'Enviando...' : 'Enviar Link de Recuperação'}</span>
       </button>
 
       <div className="form-footer-action">

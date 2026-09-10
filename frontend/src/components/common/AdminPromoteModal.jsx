@@ -9,7 +9,6 @@ export function AdminPromoteModal({ isOpen, onClose }) {
   const [error, setError] = useState(null);
   const [successMsg, setSuccessMsg] = useState(null);
 
-  // Fecha no Escape
   useEffect(() => {
     if (!isOpen) return;
     const handleKeyDown = (e) => {
@@ -19,7 +18,6 @@ export function AdminPromoteModal({ isOpen, onClose }) {
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [isOpen, onClose]);
 
-  // Reseta estado ao abrir
   useEffect(() => {
     if (isOpen) {
       setEmail('');
@@ -62,33 +60,22 @@ export function AdminPromoteModal({ isOpen, onClose }) {
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="modal-dialog" style={{ maxWidth: '520px' }}>
+      <div className="modal-dialog" style={{ maxWidth: '480px' }}>
         <div className="modal-content">
           {/* Header */}
           <div className="modal-header">
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  width: '42px',
-                  height: '42px',
-                  borderRadius: '12px',
-                  background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.22), rgba(217, 119, 6, 0.08))',
-                  border: '1px solid rgba(245, 158, 11, 0.35)',
-                  boxShadow: '0 0 16px rgba(245, 158, 11, 0.2)',
-                  fontSize: '1.35rem'
-                }}
-              >
-                👑
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+              <div className="modal-icon-badge modal-icon-gold">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M2 4l3 12h14l3-12-6 7-4-7-4 7-6-7zm3 16h14v2H5v-2z" />
+                </svg>
               </div>
               <div>
                 <h3 className="modal-movie-title" style={{ fontSize: '1.2rem', margin: 0 }}>
-                  Promover Usuário a Administrador
+                  Promover para Administrador
                 </h3>
                 <p className="modal-movie-meta" style={{ fontSize: '0.8rem', color: '#94a3b8', margin: '0.2rem 0 0' }}>
-                  Controle de Acesso por Papel (RBAC) &bull; Microsserviço de Auth
+                  Controle de Acesso por Papel (RBAC)
                 </p>
               </div>
             </div>
@@ -104,31 +91,20 @@ export function AdminPromoteModal({ isOpen, onClose }) {
 
           {/* Body */}
           <div className="modal-body">
-            <div
-              className="privacy-note"
-              style={{
-                background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.1), rgba(217, 119, 6, 0.05))',
-                borderColor: 'rgba(245, 158, 11, 0.3)',
-                color: '#fbbf24',
-                marginBottom: '1.25rem'
-              }}
-            >
-              <span style={{ fontSize: '1.2rem' }}>👑</span>
+            <div className="privacy-note">
               <p style={{ margin: 0 }}>
-                <strong>Ação Administrativa:</strong> Conceda privilégios de administrador para um usuário já cadastrado. Administradores podem moderar comentários e visualizar os logs de auditoria no Redis Streams.
+                Conceda privilégios de administrador para um usuário cadastrado. Administradores podem moderar comentários e visualizar os logs de auditoria.
               </p>
             </div>
 
             {error && (
               <div className="alert alert-danger text-xs">
-                <span>⚠️</span>
                 <span>{error}</span>
               </div>
             )}
 
             {successMsg && (
               <div className="alert alert-success text-xs">
-                <span>✅</span>
                 <span>{successMsg}</span>
               </div>
             )}
@@ -136,15 +112,18 @@ export function AdminPromoteModal({ isOpen, onClose }) {
             <form onSubmit={handleSubmit} className="auth-form" style={{ marginTop: '0.75rem' }}>
               <div className="form-group">
                 <label htmlFor="promote-email">
-                  E-mail do Usuário Cadastrado:
+                  E-mail do Usuário:
                 </label>
                 <div className="input-wrapper">
-                  <span className="input-icon">✉️</span>
+                  <svg className="input-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
+                    <polyline points="22,6 12,13 2,6" />
+                  </svg>
                   <input
                     type="email"
                     id="promote-email"
                     className="form-control"
-                    placeholder="ex: colega@exemplo.com"
+                    placeholder="colega@exemplo.com"
                     required
                     autoFocus
                     value={email}
@@ -157,7 +136,7 @@ export function AdminPromoteModal({ isOpen, onClose }) {
                 style={{
                   display: 'flex',
                   gap: '0.75rem',
-                  marginTop: '1.75rem',
+                  marginTop: '1.5rem',
                   justifyContent: 'flex-end'
                 }}
               >
@@ -167,7 +146,7 @@ export function AdminPromoteModal({ isOpen, onClose }) {
                   onClick={onClose}
                   disabled={submitting}
                 >
-                  Fechar
+                  Cancelar
                 </button>
                 <button
                   type="submit"
@@ -175,7 +154,7 @@ export function AdminPromoteModal({ isOpen, onClose }) {
                   className="btn btn-primary btn-sm"
                   disabled={submitting || !email.trim()}
                 >
-                  <span>{submitting ? 'Promovendo no Microsserviço...' : '👑 Promover para Admin'}</span>
+                  <span>{submitting ? 'Promovendo...' : 'Promover Usuário'}</span>
                 </button>
               </div>
             </form>

@@ -15,34 +15,52 @@ export function AuthView() {
         <div className="auth-hero">
           <div className="hero-badge">
             <span className="hero-badge-dot"></span>
-            ISW055 · Atividade 3 · Microsserviços
+            ISW055 &bull; Microsserviços
           </div>
           <h1 className="hero-title">
             Catálogo de filmes <span className="text-gold">Tom Hanks</span>
           </h1>
           <p className="hero-desc">
-            Arquitetura desacoplada: autenticação isolada em microsserviço independente, catálogo TMDB
-            em tempo real, controle de papéis (roles) e recuperação de senha com tokens de 30
-            minutos via Brevo.
+            Autenticação isolada em microsserviço independente, catálogo TMDB
+            em tempo real, controle de acesso RBAC e observabilidade via Redis Streams.
           </p>
 
           <div className="hero-features">
             <div className="feature-item">
-              <span className="feature-icon">🛡️</span>
+              <div className="feature-icon-box">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                </svg>
+              </div>
               <div className="feature-text">
-                <strong>Microsserviço de Autenticação Isolado</strong>
+                <strong>Autenticação Isolada</strong>
                 <p>JWT assinado com HS256, cookies HttpOnly e controle RBAC completo.</p>
               </div>
             </div>
             <div className="feature-item">
-              <span className="feature-icon">🎬</span>
+              <div className="feature-icon-box">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18" />
+                  <line x1="7" y1="2" x2="7" y2="22" />
+                  <line x1="17" y1="2" x2="17" y2="22" />
+                  <line x1="2" y1="12" x2="22" y2="12" />
+                  <line x1="2" y1="7" x2="7" y2="7" />
+                  <line x1="2" y1="17" x2="7" y2="17" />
+                  <line x1="17" y1="17" x2="22" y2="17" />
+                  <line x1="17" y1="7" x2="22" y2="7" />
+                </svg>
+              </div>
               <div className="feature-text">
-                <strong>TMDB Live & Cache MariaDB</strong>
-                <p>Pôsteres em alta definição, sinopses detalhadas, busca e favoritos.</p>
+                <strong>TMDB Live & Cache</strong>
+                <p>Filmografia em alta definição, sinopses detalhadas, busca e favoritos.</p>
               </div>
             </div>
             <div className="feature-item">
-              <span className="feature-icon">⚡</span>
+              <div className="feature-icon-box">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+                </svg>
+              </div>
               <div className="feature-text">
                 <strong>Observabilidade Redis Streams</strong>
                 <p>Rastreamento de acessos, ações e moderação de comentários em tempo real.</p>
@@ -81,7 +99,20 @@ export function AuthView() {
 
           {authAlert && (
             <div id="auth-alert" className={`alert alert-${authAlert.type || 'danger'}`}>
-              <span>{authAlert.type === 'success' ? '✅' : '⚠️'}</span>
+              <span className="alert-icon">
+                {authAlert.type === 'success' ? (
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+                    <polyline points="22 4 12 14.01 9 11.01" />
+                  </svg>
+                ) : (
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="12" cy="12" r="10" />
+                    <line x1="12" y1="8" x2="12" y2="12" />
+                    <line x1="12" y1="16" x2="12.01" y2="16" />
+                  </svg>
+                )}
+              </span>
               <span>{authAlert.message}</span>
             </div>
           )}
@@ -94,7 +125,7 @@ export function AuthView() {
 
           <div className="auth-footer">
             <p className="text-muted text-center text-xs">
-              Serviço de Autenticação isolado &bull; <code>auth-service</code> na rede interna Docker
+              Serviço de Autenticação isolado &bull; <code>auth-service</code> na rede interna
             </p>
           </div>
         </div>

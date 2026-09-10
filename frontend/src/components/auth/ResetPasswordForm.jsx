@@ -54,7 +54,7 @@ export function ResetPasswordForm() {
         <p id="reset-account-info" className="form-box-desc">
           {resetEmail ? (
             <>
-              Definindo nova senha para a conta: <strong>{resetEmail}</strong>
+              Definindo nova senha para: <strong>{resetEmail}</strong>
             </>
           ) : (
             'Informe a nova senha para sua conta.'
@@ -65,7 +65,10 @@ export function ResetPasswordForm() {
       <div className="form-group">
         <label htmlFor="reset-senha">Nova Senha</label>
         <div className="input-wrapper">
-          <span className="input-icon">🔑</span>
+          <svg className="input-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+            <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+          </svg>
           <input
             type="password"
             id="reset-senha"
@@ -82,7 +85,10 @@ export function ResetPasswordForm() {
       <div className="form-group">
         <label htmlFor="reset-senha-confirm">Confirmar Nova Senha</label>
         <div className="input-wrapper">
-          <span className="input-icon">🔒</span>
+          <svg className="input-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+            <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+          </svg>
           <input
             type="password"
             id="reset-senha-confirm"
@@ -102,7 +108,7 @@ export function ResetPasswordForm() {
         className="btn btn-primary btn-block"
         disabled={submitting}
       >
-        <span>{submitting ? 'Atualizando senha no Microsserviço...' : 'Salvar Nova Senha'}</span>
+        <span>{submitting ? 'Salvando...' : 'Salvar Nova Senha'}</span>
       </button>
 
       <div className="form-footer-action">

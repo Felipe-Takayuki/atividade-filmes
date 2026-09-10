@@ -9,7 +9,6 @@ export function AuditLogsModal({ isOpen, onClose }) {
   const [filterAction, setFilterAction] = useState('');
   const [stats, setStats] = useState(null);
 
-  // Fecha no Escape
   useEffect(() => {
     if (!isOpen) return;
     const handleKeyDown = (e) => {
@@ -46,27 +45,68 @@ export function AuditLogsModal({ isOpen, onClose }) {
   const getActionBadge = (acao) => {
     switch (acao) {
       case 'login':
-        return <span className="badge-role badge-action-login">🔑 Login</span>;
+        return (
+          <span className="status-pill status-pill-success">
+            <span className="status-dot" />
+            Login
+          </span>
+        );
       case 'logout':
-        return <span className="badge-role badge-action-logout">🚪 Logout</span>;
+        return (
+          <span className="status-pill status-pill-neutral">
+            <span className="status-dot" />
+            Logout
+          </span>
+        );
       case 'favoritar_filme':
-        return <span className="badge-role badge-action-fav">⭐ Favoritar</span>;
+        return (
+          <span className="status-pill status-pill-warning">
+            <span className="status-dot" />
+            Favoritar
+          </span>
+        );
       case 'desfavoritar_filme':
-        return <span className="badge-role badge-action-unfav">☆ Desfavoritar</span>;
+        return (
+          <span className="status-pill status-pill-muted">
+            <span className="status-dot" />
+            Desfavoritar
+          </span>
+        );
       case 'comentar':
-        return <span className="badge-role badge-action-comment">💬 Comentar</span>;
+        return (
+          <span className="status-pill status-pill-info">
+            <span className="status-dot" />
+            Comentar
+          </span>
+        );
       case 'apagar_comentario':
-        return <span className="badge-role badge-action-delete">🗑️ Apagar</span>;
+        return (
+          <span className="status-pill status-pill-danger">
+            <span className="status-dot" />
+            Apagar Comentário
+          </span>
+        );
       case 'acao_negada_403':
         return (
-          <span className="badge-role badge-action-403">
-            🚫 403 Proibido
+          <span className="status-pill status-pill-alert">
+            <span className="status-dot" />
+            403 Proibido
           </span>
         );
       case 'promover_admin':
-        return <span className="badge-role badge-action-promote">👑 Promover Admin</span>;
+        return (
+          <span className="status-pill status-pill-purple">
+            <span className="status-dot" />
+            Promover Admin
+          </span>
+        );
       default:
-        return <span className="badge-role badge-action-default">{acao}</span>;
+        return (
+          <span className="status-pill status-pill-neutral">
+            <span className="status-dot" />
+            {acao}
+          </span>
+        );
     }
   };
 
@@ -100,29 +140,22 @@ export function AuditLogsModal({ isOpen, onClose }) {
           
           {/* Header */}
           <div className="modal-header">
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  width: '42px',
-                  height: '42px',
-                  borderRadius: '12px',
-                  background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.2), rgba(37, 99, 235, 0.08))',
-                  border: '1px solid rgba(59, 130, 246, 0.35)',
-                  boxShadow: '0 0 16px rgba(59, 130, 246, 0.2)',
-                  fontSize: '1.35rem'
-                }}
-              >
-                📋
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+              <div className="modal-icon-badge modal-icon-blue">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                  <polyline points="14 2 14 8 20 8" />
+                  <line x1="16" y1="13" x2="8" y2="13" />
+                  <line x1="16" y1="17" x2="8" y2="17" />
+                  <polyline points="10 9 9 9 8 9" />
+                </svg>
               </div>
               <div>
-                <h3 className="modal-movie-title" style={{ fontSize: '1.25rem', margin: 0 }}>
-                  Logs de Auditoria do Sistema
+                <h3 className="modal-movie-title" style={{ fontSize: '1.2rem', margin: 0 }}>
+                  Logs de Auditoria
                 </h3>
                 <p className="modal-movie-meta" style={{ fontSize: '0.8rem', color: '#94a3b8', margin: '0.2rem 0 0' }}>
-                  ISW055 · Observabilidade em Tempo Real via Redis Streams (XADD / XREVRANGE)
+                  Observabilidade em tempo real com Redis Streams (XADD / XREVRANGE)
                 </p>
               </div>
             </div>
@@ -139,38 +172,36 @@ export function AuditLogsModal({ isOpen, onClose }) {
           {/* Subheader / Controles */}
           <div className="audit-controls-bar">
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
-              <label htmlFor="filter-action" style={{ fontSize: '0.85rem', color: '#cbd5e1', fontWeight: 600 }}>
-                Filtrar Ação:
+              <label htmlFor="filter-action" style={{ fontSize: '0.85rem', color: '#94a3b8', fontWeight: 500 }}>
+                Filtrar:
               </label>
               <select
                 id="filter-action"
                 className="form-control"
                 style={{
-                  padding: '0.4rem 0.85rem',
+                  padding: '0.35rem 0.75rem',
                   fontSize: '0.85rem',
-                  width: 'auto',
-                  background: 'rgba(7, 10, 18, 0.85)',
-                  borderColor: 'rgba(255, 255, 255, 0.15)'
+                  width: 'auto'
                 }}
                 value={filterAction}
                 onChange={(e) => setFilterAction(e.target.value)}
               >
                 <option value="">Todas as Ações</option>
-                <option value="login">🔑 Login</option>
-                <option value="logout">🚪 Logout</option>
-                <option value="favoritar_filme">⭐ Favoritar Filme</option>
-                <option value="desfavoritar_filme">☆ Desfavoritar Filme</option>
-                <option value="comentar">💬 Comentar</option>
-                <option value="apagar_comentario">🗑️ Apagar Comentário</option>
-                <option value="acao_negada_403">🚫 403 Proibido (Tentativas Negadas)</option>
-                <option value="promover_admin">👑 Promover Admin</option>
+                <option value="login">Login</option>
+                <option value="logout">Logout</option>
+                <option value="favoritar_filme">Favoritar Filme</option>
+                <option value="desfavoritar_filme">Desfavoritar Filme</option>
+                <option value="comentar">Comentar</option>
+                <option value="apagar_comentario">Apagar Comentário</option>
+                <option value="acao_negada_403">403 Proibido</option>
+                <option value="promover_admin">Promover Admin</option>
               </select>
             </div>
 
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem', flexWrap: 'wrap' }}>
               {stats && (
-                <span style={{ fontSize: '0.8rem', color: '#94a3b8' }}>
-                  Stream: <code style={{ background: 'rgba(255,255,255,0.08)', padding: '0.15rem 0.4rem', borderRadius: '4px', color: '#93c5fd' }}>{stats.stream_key}</code> ({stats.total_events} gravados)
+                <span style={{ fontSize: '0.8rem', color: '#64748b' }}>
+                  Stream: <code style={{ color: '#94a3b8' }}>{stats.stream_key}</code> ({stats.total_events} eventos)
                 </span>
               )}
               <button
@@ -180,27 +211,29 @@ export function AuditLogsModal({ isOpen, onClose }) {
                 disabled={loading}
                 style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}
               >
-                <span style={{ display: 'inline-block', transform: loading ? 'rotate(180deg)' : 'none', transition: 'transform 0.4s' }}>🔄</span>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ transform: loading ? 'rotate(180deg)' : 'none', transition: 'transform 0.4s' }}>
+                  <polyline points="23 4 23 10 17 10" />
+                  <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
+                </svg>
                 <span>{loading ? 'Consultando...' : 'Atualizar'}</span>
               </button>
             </div>
           </div>
 
           {/* Body / Tabela */}
-          <div className="modal-body" style={{ overflowY: 'auto', flex: 1, padding: '1.25rem 1.75rem' }}>
+          <div className="modal-body" style={{ overflowY: 'auto', flex: 1, padding: '1rem 1.5rem' }}>
             {loading && logs.length === 0 ? (
               <div style={{ textAlign: 'center', padding: '3rem 0', color: '#94a3b8' }}>
-                <div className="spinner" style={{ margin: '0 auto 1.25rem' }} />
-                <p style={{ fontWeight: 600 }}>Consultando eventos no Redis Streams...</p>
+                <div className="spinner" style={{ margin: '0 auto 1rem' }} />
+                <p>Consultando eventos no Redis Streams...</p>
               </div>
             ) : logs.length === 0 ? (
-              <div style={{ textAlign: 'center', padding: '3.5rem 1rem', color: '#94a3b8' }}>
-                <p style={{ fontSize: '2.5rem', marginBottom: '0.75rem' }}>📭</p>
-                <p style={{ fontSize: '1.1rem', fontWeight: 700, color: '#fff', marginBottom: '0.35rem' }}>
-                  Nenhum evento registrado no momento.
+              <div style={{ textAlign: 'center', padding: '3.5rem 1rem', color: '#64748b' }}>
+                <p style={{ fontSize: '1rem', fontWeight: 600, color: '#94a3b8', marginBottom: '0.35rem' }}>
+                  Nenhum evento registrado.
                 </p>
-                <p style={{ fontSize: '0.85rem', color: '#64748b' }}>
-                  Realize ações como login, favoritar filme ou comentar para gerar logs de auditoria.
+                <p style={{ fontSize: '0.85rem' }}>
+                  Ações como login, favoritar filme ou comentar serão registradas automaticamente.
                 </p>
               </div>
             ) : (
@@ -212,7 +245,7 @@ export function AuditLogsModal({ isOpen, onClose }) {
                       <th style={{ whiteSpace: 'nowrap' }}>Ação</th>
                       <th style={{ whiteSpace: 'nowrap' }}>Usuário</th>
                       <th style={{ whiteSpace: 'nowrap' }}>IP Origem</th>
-                      <th>Detalhes do Evento</th>
+                      <th>Detalhes</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -221,33 +254,24 @@ export function AuditLogsModal({ isOpen, onClose }) {
                         key={item.id || idx}
                         className={item.acao === 'acao_negada_403' ? 'row-403' : ''}
                       >
-                        <td style={{ whiteSpace: 'nowrap', color: '#e2e8f0', fontSize: '0.825rem' }}>
+                        <td style={{ whiteSpace: 'nowrap', color: '#94a3b8', fontSize: '0.825rem', fontFamily: 'monospace' }}>
                           {formatTimestamp(item.timestamp)}
                         </td>
                         <td style={{ whiteSpace: 'nowrap' }}>
                           {getActionBadge(item.acao)}
                         </td>
                         <td style={{ whiteSpace: 'nowrap' }}>
-                          <span style={{ fontWeight: 600, color: '#f8fafc' }}>
+                          <span style={{ fontWeight: 500, color: '#f8fafc' }}>
                             ID: {item.usuario_id}
                           </span>
                           {item.usuario_email && (
-                            <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>
+                            <div style={{ fontSize: '0.75rem', color: '#64748b' }}>
                               {item.usuario_email}
                             </div>
                           )}
                         </td>
                         <td style={{ whiteSpace: 'nowrap' }}>
-                          <code
-                            style={{
-                              background: 'rgba(59, 130, 246, 0.1)',
-                              border: '1px solid rgba(59, 130, 246, 0.25)',
-                              padding: '0.15rem 0.45rem',
-                              borderRadius: '4px',
-                              color: '#93c5fd',
-                              fontSize: '0.775rem'
-                            }}
-                          >
+                          <code className="code-ip">
                             {item.ip || '127.0.0.1'}
                           </code>
                         </td>
@@ -257,7 +281,7 @@ export function AuditLogsModal({ isOpen, onClose }) {
                               {JSON.stringify(item.detalhes, null, 1)}
                             </pre>
                           ) : (
-                            <span style={{ color: '#cbd5e1', fontSize: '0.825rem' }}>
+                            <span style={{ color: '#94a3b8', fontSize: '0.825rem' }}>
                               {item.detalhes || '-'}
                             </span>
                           )}
@@ -273,7 +297,7 @@ export function AuditLogsModal({ isOpen, onClose }) {
           {/* Footer */}
           <div className="modal-footer">
             <span style={{ fontSize: '0.825rem', color: '#64748b' }}>
-              Exibindo <strong>{logs.length}</strong> eventos mais recentes gravados no Redis Streams
+              Exibindo <strong>{logs.length}</strong> eventos
             </span>
             <button
               type="button"

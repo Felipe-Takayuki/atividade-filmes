@@ -1,48 +1,48 @@
 /* ==========================================================================
-   Catálogo Tom Hanks — Cinema Dark Theme (Linear / Netflix Standard)
-   Design System: Glassmorphism, Microinteractions, Cinema Gold & Deep Black
+   Catálogo Tom Hanks — Clean Minimalist Theme (Apple, Linear, Raycast Style)
+   Design System: Decluttering, Subtle Glassmorphism, Microinteractions
    ========================================================================== */
 
 :root {
-  /* Surface & Backgrounds */
-  --bg-app: #07090e;
-  --bg-surface: #0e1424;
-  --bg-card: rgba(16, 23, 41, 0.72);
-  --bg-card-hover: rgba(23, 33, 58, 0.85);
-  --bg-card-solid: #111827;
-  --bg-input: rgba(11, 16, 28, 0.85);
-  --bg-input-focus: rgba(15, 23, 42, 0.95);
-  --bg-modal: #0d1222;
-  --bg-modal-backdrop: rgba(3, 5, 10, 0.82);
+  /* Surface & Backgrounds (Neutral obsidian/slate palette - Linear/Apple style) */
+  --bg-app: #080a0f;
+  --bg-surface: #0e111a;
+  --bg-card: rgba(15, 18, 28, 0.65);
+  --bg-card-hover: rgba(22, 27, 42, 0.75);
+  --bg-card-solid: #0e111b;
+  --bg-input: rgba(10, 13, 22, 0.65);
+  --bg-input-focus: rgba(14, 18, 30, 0.85);
+  --bg-modal: #0b0e17;
+  --bg-modal-backdrop: rgba(3, 4, 8, 0.75);
 
-  /* Borders & Highlights */
-  --border-subtle: rgba(255, 255, 255, 0.08);
-  --border-default: rgba(255, 255, 255, 0.12);
-  --border-bright: rgba(255, 255, 255, 0.2);
-  --border-color: rgba(255, 255, 255, 0.09);
-  --border-focus: #f59e0b;
-  --border-focus-blue: #3b82f6;
+  /* Borders & Highlights — Subdued and refined */
+  --border-subtle: rgba(255, 255, 255, 0.06);
+  --border-default: rgba(255, 255, 255, 0.08);
+  --border-bright: rgba(255, 255, 255, 0.14);
+  --border-color: rgba(255, 255, 255, 0.07);
+  --border-focus: rgba(245, 158, 11, 0.65);
+  --border-focus-blue: rgba(59, 130, 246, 0.65);
 
   /* Typography */
   --text-main: #f8fafc;
   --text-secondary: #94a3b8;
-  --text-muted: #94a3b8;
-  --text-dim: #64748b;
+  --text-muted: #64748b;
+  --text-dim: #475569;
   --text-gold: #fbbf24;
 
-  /* Accent Colors — Cinema Gold */
+  /* Accent Colors — Restrained Warm Amber */
   --accent-gold: #f59e0b;
   --accent-gold-hover: #fbbf24;
   --accent-gold-dark: #d97706;
-  --accent-gold-glow: 0 0 25px rgba(245, 158, 11, 0.25);
+  --accent-gold-glow: none;
 
-  /* Accent Colors — Electric Blue */
+  /* Accent Colors — Refined Electric Blue */
   --accent-blue: #3b82f6;
   --accent-blue-hover: #60a5fa;
   --accent-blue-dark: #2563eb;
-  --accent-blue-glow: 0 0 25px rgba(59, 130, 246, 0.25);
+  --accent-blue-glow: none;
 
-  /* Accent Colors — Status */
+  /* Accent Colors — Status (Subdued) */
   --accent-danger: #ef4444;
   --accent-danger-hover: #f87171;
   --accent-danger-dark: #dc2626;
@@ -50,26 +50,26 @@
   --accent-success-hover: #34d399;
   --accent-purple: #a855f7;
 
-  /* Border Radii */
+  /* Border Radii — Consistent and sharp */
   --radius-xs: 4px;
   --radius-sm: 8px;
-  --radius-md: 12px;
-  --radius-lg: 18px;
-  --radius-xl: 24px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 18px;
   --radius-full: 9999px;
 
-  /* Elevation & Shadows */
-  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.35);
-  --shadow-md: 0 8px 24px -4px rgba(0, 0, 0, 0.5);
-  --shadow-lg: 0 16px 40px -8px rgba(0, 0, 0, 0.65);
-  --shadow-xl: 0 24px 60px -12px rgba(0, 0, 0, 0.8);
-  --shadow-glow: 0 0 24px rgba(245, 158, 11, 0.18);
-  --shadow-inset-top: inset 0 1px 0 0 rgba(255, 255, 255, 0.08);
+  /* Elevation & Shadows — Crisp and elegant without muddy glows */
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 16px -2px rgba(0, 0, 0, 0.45);
+  --shadow-lg: 0 10px 30px -4px rgba(0, 0, 0, 0.6);
+  --shadow-xl: 0 20px 48px -8px rgba(0, 0, 0, 0.75);
+  --shadow-glow: none;
+  --shadow-inset-top: inset 0 1px 0 0 rgba(255, 255, 255, 0.06);
 
   /* Transitions */
-  --transition-fast: 0.16s cubic-bezier(0.16, 1, 0.3, 1);
-  --transition-normal: 0.28s cubic-bezier(0.16, 1, 0.3, 1);
-  --transition-slow: 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  --transition-fast: 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+  --transition-normal: 0.24s cubic-bezier(0.16, 1, 0.3, 1);
+  --transition-slow: 0.35s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 /* ================= BASE & RESET ================= */
@@ -346,6 +346,155 @@ body {
   background: rgba(255, 255, 255, 0.08) !important;
   color: #cbd5e1 !important;
   border: 1px solid var(--border-default) !important;
+}
+
+/* ================= STATUS PILLS (MINIMALIST LINEAR / GITHUB STYLE) ================= */
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.2rem 0.65rem;
+  border-radius: var(--radius-full);
+  font-size: 0.75rem;
+  font-weight: 500;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.status-pill-success {
+  background: rgba(16, 185, 129, 0.1);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.2);
+}
+.status-pill-success .status-dot {
+  background: #10b981;
+}
+
+.status-pill-neutral {
+  background: rgba(148, 163, 184, 0.1);
+  color: #94a3b8;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+}
+.status-pill-neutral .status-dot {
+  background: #64748b;
+}
+
+.status-pill-warning {
+  background: rgba(245, 158, 11, 0.1);
+  color: #fbbf24;
+  border: 1px solid rgba(245, 158, 11, 0.25);
+}
+.status-pill-warning .status-dot {
+  background: #f59e0b;
+}
+
+.status-pill-muted {
+  background: rgba(120, 113, 108, 0.1);
+  color: #a8a29e;
+  border: 1px solid rgba(120, 113, 108, 0.2);
+}
+.status-pill-muted .status-dot {
+  background: #78716c;
+}
+
+.status-pill-info {
+  background: rgba(59, 130, 246, 0.1);
+  color: #60a5fa;
+  border: 1px solid rgba(59, 130, 246, 0.25);
+}
+.status-pill-info .status-dot {
+  background: #3b82f6;
+}
+
+.status-pill-danger {
+  background: rgba(239, 68, 68, 0.1);
+  color: #f87171;
+  border: 1px solid rgba(239, 68, 68, 0.25);
+}
+.status-pill-danger .status-dot {
+  background: #ef4444;
+}
+
+.status-pill-alert {
+  background: rgba(239, 68, 68, 0.15);
+  color: #fca5a5;
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  font-weight: 600;
+}
+.status-pill-alert .status-dot {
+  background: #ef4444;
+  box-shadow: 0 0 6px rgba(239, 68, 68, 0.6);
+}
+
+.status-pill-purple {
+  background: rgba(168, 85, 247, 0.1);
+  color: #c084fc;
+  border: 1px solid rgba(168, 85, 247, 0.25);
+}
+.status-pill-purple .status-dot {
+  background: #a855f7;
+}
+
+/* Minimalist Modal Badges & Elements */
+.modal-icon-badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: var(--radius-md);
+  flex-shrink: 0;
+}
+
+.modal-icon-blue {
+  background: rgba(59, 130, 246, 0.12);
+  border: 1px solid rgba(59, 130, 246, 0.25);
+  color: #60a5fa;
+}
+
+.modal-icon-gold {
+  background: rgba(245, 158, 11, 0.12);
+  border: 1px solid rgba(245, 158, 11, 0.25);
+  color: #fbbf24;
+}
+
+.modal-poster-thumb-placeholder {
+  width: 48px;
+  height: 70px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border-subtle);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-dim);
+}
+
+.empty-comments-box {
+  text-align: center;
+  padding: 2.5rem 1rem;
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: var(--radius-md);
+  border: 1px dashed var(--border-subtle);
+}
+
+.code-ip {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border-subtle);
+  padding: 0.15rem 0.45rem;
+  border-radius: 4px;
+  color: #94a3b8;
+  font-size: 0.775rem;
+  font-family: monospace;
 }
 
 /* ================= BUTTONS ================= */
