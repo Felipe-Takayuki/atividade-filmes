@@ -1,15 +1,17 @@
 version: '3.8'
 
 # ==============================================================================
-# ISW055 - Atividade 3: Microsserviço de Autenticação (Serviços Desacoplados)
-# Arquitetura: 2 containers + MariaDB em rede interna isolada
-# Autenticação e Usuários: Gerenciados pelo Microsserviço auth-service (Login, Cadastro, Roles, SMTP/Tokens)
-# Catálogo & TMDB: Gerenciados pelo container catalogo (Backend + Frontend)
-# Ponto de entrada público: APENAS o container do catálogo (porta 3000)
+# ISW055 - Atividade 5: Observabilidade - Logs e Auditoria (Redis Streams)
+# Arquitetura: 4 serviços desacoplados em rede interna isolada (app-network)
+# - catalogo: Ponto ÚNICO de entrada público (:3000) com Frontend e Backend
+# - auth-service: Microsserviço de autenticação e RBAC (:4000 interno)
+# - log-service: Microsserviço de observabilidade e auditoria (:5000 interno)
+# - redis: Banco NoSQL chave-valor em memória com persistência AOF (:6379 interno)
 # ==============================================================================
 
 services:
-  # 1. Container do Catálogo (Frontend SPA + Backend TMDB/Favoritos/Comentários) - Único com porta pública
+  # 1. Container do Catálogo (Frontend SPA + Backend TMDB/Favoritos/Comentários/Auditoria)
+  # ÚNICO serviço com porta pública publicada no host
   catalogo:
     build:
       context: .
@@ -19,6 +21,7 @@ services:
     environment:
       - PORT=3000
       - AUTH_SERVICE_URL=http://auth-service:4000
+      - LOG_SERVICE_URL=http://log-service:5000
       - DB_HOST=${DB_HOST:-mariadb}
       - DB_PORT=${DB_PORT:-3306}
       - DB_USER=${DB_USER:-aluno}
@@ -28,11 +31,12 @@ services:
       - JWT_SECRET=${JWT_SECRET:-chave_jwt_secreta_local_dev}
     depends_on:
       - auth-service
+      - log-service
     networks:
       - app-network
     restart: unless-stopped
 
-  # 2. Microsserviço de Troca de Senha (Geração de Tokens, Envio de E-mail SMTP e Redefinição)
+  # 2. Microsserviço de Autenticação (Login, Cadastro, RBAC, Tokens e Troca de Senha)
   # ATENÇÃO: Sem 'ports' publicado pro host - acessível APENAS via rede Docker interna
   auth-service:
     build:
@@ -42,6 +46,7 @@ services:
       - "4000"
     environment:
       - PORT=4000
+      - LOG_SERVICE_URL=http://log-service:5000
       - DB_HOST=${DB_HOST:-mariadb}
       - DB_PORT=${DB_PORT:-3306}
       - DB_USER=${DB_USER:-aluno}
@@ -58,11 +63,48 @@ services:
       - BREVO_SENDER_EMAIL=${BREVO_SENDER_EMAIL:-}
       - BREVO_USE_API=${BREVO_USE_API:-}
       - RESEND_API_KEY=${RESEND_API_KEY:-}
+    depends_on:
+      - log-service
     networks:
       - app-network
     restart: unless-stopped
 
+  # 3. Microsserviço de Observabilidade e Logs de Auditoria (Atividade 5)
+  # ATENÇÃO: Sem 'ports' publicado pro host - acessível APENAS internamente
+  log-service:
+    build:
+      context: ./log-service
+      dockerfile: Dockerfile
+    expose:
+      - "5000"
+    environment:
+      - PORT=5000
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_STREAM_KEY=${REDIS_STREAM_KEY:-audit:events}
+    depends_on:
+      - redis
+    networks:
+      - app-network
+    restart: unless-stopped
+
+  # 4. Redis para Streams de Auditoria (Append-Only File habilitado para persistência)
+  # ATENÇÃO: Sem porta no host - acessível APENAS na rede interna do Docker
+  redis:
+    image: redis:7-alpine
+    command: redis-server --appendonly yes
+    expose:
+      - "6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - app-network
+    restart: unless-stopped
+
+volumes:
+  redis-data:
+    driver: local
+
 networks:
   app-network:
     driver: bridge
-

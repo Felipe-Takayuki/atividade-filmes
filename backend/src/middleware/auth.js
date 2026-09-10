@@ -1,5 +1,6 @@
 import jwt from 'jsonwebtoken';
 import dotenv from 'dotenv';
+import { sendLogEvent, getClientIp } from '../services/logClient.js';
 
 dotenv.config();
 
@@ -50,8 +51,22 @@ export function authenticate(req, res, next) {
 export function requireRole(requiredRole) {
   return (req, res, next) => {
     if (!req.user || req.user.role !== requiredRole) {
+      sendLogEvent({
+        usuario_id: req.user?.id || 'desconhecido',
+        usuario_email: req.user?.email,
+        acao: 'acao_negada_403',
+        ip: getClientIp(req),
+        detalhes: {
+          motivo: `Acesso proibido. Ação requer papel ${requiredRole}`,
+          rota: req.originalUrl || req.url,
+          metodo: req.method,
+          papel_atual: req.user?.role || 'nenhum'
+        }
+      });
+
       return res.status(403).json({
-        error: `Acesso proibido. Esta ação requer permissão de ${requiredRole}.`
+        error: `Acesso proibido. Esta ação requer permissão de ${requiredRole}.`,
+        code: 'FORBIDDEN_NOT_ADMIN'
       });
     }
     next();

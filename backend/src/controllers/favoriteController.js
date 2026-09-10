@@ -1,4 +1,5 @@
 import { pool } from '../config/db.js';
+import { sendLogEvent, getClientIp } from '../services/logClient.js';
 
 const IMAGE_BASE_URL = 'https://image.tmdb.org/t/p/w500';
 
@@ -61,6 +62,20 @@ export async function addFavorite(req, res) {
       [userId, movieId, titulo.trim(), poster_path || null]
     );
 
+    const clientIp = getClientIp(req);
+
+    // Registra evento de auditoria: favoritar filme
+    sendLogEvent({
+      usuario_id: userId,
+      usuario_email: req.user?.email,
+      acao: 'favoritar_filme',
+      ip: clientIp,
+      detalhes: {
+        tmdb_movie_id: movieId,
+        titulo: titulo.trim()
+      }
+    });
+
     return res.status(201).json({
       success: true,
       message: 'Filme adicionado aos favoritos com sucesso.',
@@ -85,6 +100,7 @@ export async function removeFavorite(req, res) {
   try {
     const userId = req.user.id;
     const movieId = parseInt(req.params.tmdb_movie_id, 10);
+    const clientIp = getClientIp(req);
 
     if (isNaN(movieId)) {
       return res.status(400).json({ error: 'tmdb_movie_id inválido.' });
@@ -94,6 +110,17 @@ export async function removeFavorite(req, res) {
       'DELETE FROM favoritos WHERE usuario_id = ? AND tmdb_movie_id = ?',
       [userId, movieId]
     );
+
+    // Registra evento de auditoria: desfavoritar filme
+    sendLogEvent({
+      usuario_id: userId,
+      usuario_email: req.user?.email,
+      acao: 'desfavoritar_filme',
+      ip: clientIp,
+      detalhes: {
+        tmdb_movie_id: movieId
+      }
+    });
 
     return res.json({
       success: true,

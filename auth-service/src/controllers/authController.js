@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs';
 import { pool } from '../config/db.js';
 import { sendPasswordResetEmail } from '../services/emailService.js';
 import { generateToken } from '../middleware/auth.js';
+import { sendLogEvent, getClientIp } from '../services/logClient.js';
 
 // ==============================================================================
 // 1. AUTENTICAÇÃO E GESTÃO DE USUÁRIOS (Cadastro, Login, Perfil e Roles)
@@ -207,8 +208,22 @@ export async function authorize(req, res) {
     const user = rows[0];
     const role = user.role || 'usuario';
 
+    const clientIp = getClientIp(req);
+
     // 1. Validação por papel exigido (ex: requiredRole = 'admin')
     if (requiredRole && role !== requiredRole) {
+      sendLogEvent({
+        usuario_id: user.id,
+        usuario_email: user.email,
+        acao: 'acao_negada_403',
+        ip: clientIp,
+        detalhes: {
+          motivo: `Acesso negado no auth-service: requer papel ${requiredRole}`,
+          papel_atual: role,
+          action
+        }
+      });
+
       return res.status(403).json({
         authorized: false,
         userId: user.id,
@@ -221,6 +236,18 @@ export async function authorize(req, res) {
 
     // 2. Validação por ação específica de moderação
     if (action === 'delete:other-comment' && role !== 'admin') {
+      sendLogEvent({
+        usuario_id: user.id,
+        usuario_email: user.email,
+        acao: 'acao_negada_403',
+        ip: clientIp,
+        detalhes: {
+          motivo: 'Acesso negado no auth-service: exclusão de comentário alheio requer papel admin',
+          papel_atual: role,
+          action
+        }
+      });
+
       return res.status(403).json({
         authorized: false,
         userId: user.id,
@@ -252,6 +279,7 @@ export async function authorize(req, res) {
 export async function promoteUserByEmail(req, res) {
   try {
     const { email, requesterId } = req.body;
+    const clientIp = getClientIp(req);
 
     // 1. Validação do solicitante (deve ser admin)
     const reqId = parseInt(requesterId, 10);
@@ -265,6 +293,16 @@ export async function promoteUserByEmail(req, res) {
     );
 
     if (requesterRows.length === 0 || requesterRows[0].role !== 'admin') {
+      sendLogEvent({
+        usuario_id: reqId,
+        acao: 'acao_negada_403',
+        ip: clientIp,
+        detalhes: {
+          motivo: 'Tentativa de promover usuário a admin sem papel admin (auth-service)',
+          recurso: 'POST /users/promote'
+        }
+      });
+
       return res.status(403).json({
         error: 'Acesso proibido. Apenas administradores podem promover outros usuários para admin.',
         code: 'FORBIDDEN_NOT_ADMIN'

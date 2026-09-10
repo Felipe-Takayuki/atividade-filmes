@@ -1,5 +1,6 @@
 import { pool } from '../config/db.js';
 import { callAuthService } from './authController.js';
+import { sendLogEvent, getClientIp } from '../services/logClient.js';
 
 /**
  * Lista TODOS os comentários de um filme específico feitos por TODOS os usuários.
@@ -68,6 +69,19 @@ export async function addComment(req, res) {
       [result.insertId]
     );
 
+    // Registra evento de auditoria: comentar
+    sendLogEvent({
+      usuario_id: userId,
+      usuario_email: req.user?.email,
+      acao: 'comentar',
+      ip: getClientIp(req),
+      detalhes: {
+        tmdb_movie_id: movieId,
+        comentario_id: result.insertId,
+        texto_resumo: texto.trim().substring(0, 100)
+      }
+    });
+
     return res.status(201).json({
       success: true,
       message: 'Comentário salvo com sucesso.',
@@ -92,6 +106,7 @@ export async function deleteComment(req, res) {
   try {
     const userId = req.user.id;
     const commentId = parseInt(req.params.id, 10);
+    const clientIp = getClientIp(req);
 
     if (isNaN(commentId)) {
       return res.status(400).json({ error: 'ID do comentário inválido.' });
@@ -114,6 +129,20 @@ export async function deleteComment(req, res) {
     // 2. Se o comentário pertencer ao usuário logado, permite exclusão direta (dono do recurso)
     if (comment.usuario_id === userId) {
       await pool.query('DELETE FROM comentarios WHERE id = ?', [commentId]);
+
+      // Registra evento de auditoria: apagar comentário próprio
+      sendLogEvent({
+        usuario_id: userId,
+        usuario_email: req.user?.email,
+        acao: 'apagar_comentario',
+        ip: clientIp,
+        detalhes: {
+          comentario_id: commentId,
+          tmdb_movie_id: comment.tmdb_movie_id,
+          tipo: 'proprio_autor'
+        }
+      });
+
       return res.json({
         success: true,
         message: 'Comentário removido com sucesso pelo próprio autor.'
@@ -134,6 +163,21 @@ export async function deleteComment(req, res) {
 
     if (userRole !== 'admin') {
       console.warn(`[Comments-RBAC] Bloqueio 403: Usuário ${userId} (role: ${userRole}) tentou excluir comentário ${commentId} do usuário ${comment.usuario_id}`);
+
+      // Registra evento de auditoria: tentativa de ação negada por permissão (403)
+      sendLogEvent({
+        usuario_id: userId,
+        usuario_email: req.user?.email,
+        acao: 'acao_negada_403',
+        ip: clientIp,
+        detalhes: {
+          motivo: 'Tentativa de excluir comentário de outro usuário sem permissão de administrador',
+          recurso: `DELETE /api/comments/${commentId}`,
+          autor_original_id: comment.usuario_id,
+          papel_solicitante: userRole
+        }
+      });
+
       return res.status(403).json({
         error: 'Acesso proibido. Apenas administradores têm permissão para excluir comentários de outros usuários.',
         code: 'FORBIDDEN_NOT_ADMIN'
@@ -144,6 +188,21 @@ export async function deleteComment(req, res) {
     await pool.query('DELETE FROM comentarios WHERE id = ?', [commentId]);
 
     console.log(`[Comments-RBAC] Sucesso 200: Administrador ${userId} excluiu comentário ${commentId} de outro usuário via moderação.`);
+
+    // Registra evento de auditoria: apagar comentário (moderação por admin)
+    sendLogEvent({
+      usuario_id: userId,
+      usuario_email: req.user?.email,
+      acao: 'apagar_comentario',
+      ip: clientIp,
+      detalhes: {
+        comentario_id: commentId,
+        tmdb_movie_id: comment.tmdb_movie_id,
+        autor_original_id: comment.usuario_id,
+        tipo: 'moderacao_admin'
+      }
+    });
+
     return res.json({
       success: true,
       message: 'Comentário de outro usuário removido com sucesso por moderação de administrador.'

@@ -202,5 +202,16 @@ export const api = {
     return this.request(`/comments/${commentId}`, {
       method: 'DELETE'
     });
+  },
+
+  // ===== AUDIT LOGS (REDIS STREAMS - ATIVIDADE 5) =====
+  async getAuditLogs({ limit = 50, acao = '', usuario_id = '' } = {}) {
+    const params = new URLSearchParams();
+    if (limit) params.append('limit', limit);
+    if (acao) params.append('acao', acao);
+    if (usuario_id) params.append('usuario_id', usuario_id);
+
+    const query = params.toString() ? `?${params.toString()}` : '';
+    return this.request(`/logs${query}`);
   }
 };

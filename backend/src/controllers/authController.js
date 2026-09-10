@@ -1,4 +1,6 @@
 import dotenv from 'dotenv';
+import jwt from 'jsonwebtoken';
+import { sendLogEvent, getClientIp } from '../services/logClient.js';
 
 dotenv.config();
 
@@ -66,17 +68,32 @@ export async function register(req, res) {
  * Rota: POST /api/auth/login
  */
 export async function login(req, res) {
+  const clientIp = getClientIp(req);
   const { status, data } = await callAuthService('/login', {
     method: 'POST',
     body: JSON.stringify(req.body)
   });
 
-  if (data?.token) {
-    res.cookie('token', data.token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: 7 * 24 * 60 * 60 * 1000
+  if (status === 200 && data?.user) {
+    if (data?.token) {
+      res.cookie('token', data.token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: 7 * 24 * 60 * 60 * 1000
+      });
+    }
+
+    // Registra evento de auditoria: login realizado com sucesso
+    sendLogEvent({
+      usuario_id: data.user.id,
+      usuario_email: data.user.email,
+      acao: 'login',
+      ip: clientIp,
+      detalhes: {
+        nome: data.user.nome,
+        role: data.user.role || 'usuario'
+      }
     });
   }
 
@@ -132,6 +149,33 @@ export async function authorize(req, res) {
  * Rota: POST /api/auth/logout
  */
 export function logout(req, res) {
+  const clientIp = getClientIp(req);
+  let userId = 'anônimo';
+  let userEmail = '';
+
+  const authHeader = req.headers.authorization;
+  const token = (authHeader && authHeader.startsWith('Bearer ')) ? authHeader.split(' ')[1] : req.cookies?.token;
+  if (token) {
+    try {
+      const decoded = jwt.decode(token);
+      if (decoded) {
+        userId = decoded.id || 'anônimo';
+        userEmail = decoded.email || '';
+      }
+    } catch (e) {}
+  }
+
+  // Registra evento de auditoria: logout
+  sendLogEvent({
+    usuario_id: userId,
+    usuario_email: userEmail,
+    acao: 'logout',
+    ip: clientIp,
+    detalhes: {
+      origem: 'api/auth/logout'
+    }
+  });
+
   res.clearCookie('token');
   return res.json({ success: true, message: 'Logout realizado com sucesso.' });
 }
@@ -200,6 +244,18 @@ export async function promoteUserByEmail(req, res) {
 
     // 1. Verificação preliminar local
     if (requesterRole !== 'admin') {
+      sendLogEvent({
+        usuario_id: requesterId,
+        usuario_email: req.user?.email,
+        acao: 'acao_negada_403',
+        ip: getClientIp(req),
+        detalhes: {
+          motivo: 'Tentativa de promover usuário a administrador sem privilégio de admin',
+          recurso: 'POST /api/auth/users/promote',
+          email_alvo: email
+        }
+      });
+
       return res.status(403).json({
         error: 'Acesso proibido. Apenas administradores têm permissão para promover usuários a admin.',
         code: 'FORBIDDEN_NOT_ADMIN'
@@ -214,6 +270,19 @@ export async function promoteUserByEmail(req, res) {
         requesterId
       })
     });
+
+    if (status === 200) {
+      sendLogEvent({
+        usuario_id: requesterId,
+        usuario_email: req.user?.email,
+        acao: 'promover_admin',
+        ip: getClientIp(req),
+        detalhes: {
+          email_promovido: email.trim().toLowerCase(),
+          mensagem: data.message
+        }
+      });
+    }
 
     return res.status(status).json(data);
   } catch (err) {

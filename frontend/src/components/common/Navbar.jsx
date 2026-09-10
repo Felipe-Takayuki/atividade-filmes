@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { AdminPromoteModal } from './AdminPromoteModal';
+import { AuditLogsModal } from './AuditLogsModal';
 
 export function Navbar() {
   const { user, isAuthenticated, logout } = useAuth();
   const [showPromoteModal, setShowPromoteModal] = useState(false);
+  const [showLogsModal, setShowLogsModal] = useState(false);
 
   return (
     <>
@@ -34,24 +36,43 @@ export function Navbar() {
                 </span>
               </div>
 
-              {/* Botão exclusivo de Administrador para promover outros usuários */}
+              {/* Botões exclusivos de Administrador */}
               {user.role === 'admin' && (
-                <button
-                  id="btn-open-promote-modal"
-                  className="btn btn-outline-warning btn-sm"
-                  title="Promover usuário para Administrador por e-mail"
-                  onClick={() => setShowPromoteModal(true)}
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '0.35rem',
-                    border: '1px solid rgba(245, 158, 11, 0.4)',
-                    color: 'var(--accent-gold)'
-                  }}
-                >
-                  <span>👑</span>
-                  <span>Promover Admin</span>
-                </button>
+                <>
+                  <button
+                    id="btn-open-logs-modal"
+                    className="btn btn-outline-primary btn-sm"
+                    title="Consultar Logs de Auditoria (Redis Streams)"
+                    onClick={() => setShowLogsModal(true)}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '0.35rem',
+                      border: '1px solid rgba(59, 130, 246, 0.4)',
+                      color: '#60a5fa'
+                    }}
+                  >
+                    <span>📋</span>
+                    <span>Logs de Auditoria</span>
+                  </button>
+
+                  <button
+                    id="btn-open-promote-modal"
+                    className="btn btn-outline-warning btn-sm"
+                    title="Promover usuário para Administrador por e-mail"
+                    onClick={() => setShowPromoteModal(true)}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '0.35rem',
+                      border: '1px solid rgba(245, 158, 11, 0.4)',
+                      color: 'var(--accent-gold)'
+                    }}
+                  >
+                    <span>👑</span>
+                    <span>Promover Admin</span>
+                  </button>
+                </>
               )}
 
               <button
@@ -83,6 +104,12 @@ export function Navbar() {
       <AdminPromoteModal
         isOpen={showPromoteModal}
         onClose={() => setShowPromoteModal(false)}
+      />
+
+      {/* Modal de Logs e Auditoria (Redis Streams) */}
+      <AuditLogsModal
+        isOpen={showLogsModal}
+        onClose={() => setShowLogsModal(false)}
       />
     </>
   );
