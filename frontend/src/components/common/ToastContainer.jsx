@@ -23,14 +23,16 @@ export function ToastContainer() {
           className={`toast toast-${toast.type}`}
           style={{
             opacity: toast.isExiting ? 0 : 1,
-            transform: toast.isExiting ? 'translateY(10px)' : 'translateY(0)',
-            transition: 'all 0.3s ease',
+            transform: toast.isExiting ? 'translateY(10px) scale(0.95)' : 'translateY(0) scale(1)',
+            transition: 'all 0.28s cubic-bezier(0.16, 1, 0.3, 1)',
             cursor: 'pointer'
           }}
+          title="Clique para fechar"
           onClick={() => removeToast(toast.id)}
         >
-          <span>{getIcon(toast.type)}</span>
-          <span>{toast.message}</span>
+          <span style={{ fontSize: '1rem', lineHeight: 1 }}>{getIcon(toast.type)}</span>
+          <span style={{ flex: 1 }}>{toast.message}</span>
+          <span style={{ opacity: 0.6, fontSize: '0.8rem', marginLeft: '0.4rem' }}>&times;</span>
         </div>
       ))}
     </div>

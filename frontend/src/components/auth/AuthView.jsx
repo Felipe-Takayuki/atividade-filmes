@@ -13,15 +13,42 @@ export function AuthView() {
       <div className="container auth-container">
         {/* Left Hero */}
         <div className="auth-hero">
-          <div className="hero-badge">ISW055 · Atividade 3 · Microsserviços</div>
+          <div className="hero-badge">
+            <span className="hero-badge-dot"></span>
+            ISW055 · Atividade 3 · Microsserviços
+          </div>
           <h1 className="hero-title">
             Catálogo de filmes <span className="text-gold">Tom Hanks</span>
           </h1>
           <p className="hero-desc">
             Arquitetura desacoplada: autenticação isolada em microsserviço independente, catálogo TMDB
             em tempo real, controle de papéis (roles) e recuperação de senha com tokens de 30
-            minutos.
+            minutos via Brevo.
           </p>
+
+          <div className="hero-features">
+            <div className="feature-item">
+              <span className="feature-icon">🛡️</span>
+              <div className="feature-text">
+                <strong>Microsserviço de Autenticação Isolado</strong>
+                <p>JWT assinado com HS256, cookies HttpOnly e controle RBAC completo.</p>
+              </div>
+            </div>
+            <div className="feature-item">
+              <span className="feature-icon">🎬</span>
+              <div className="feature-text">
+                <strong>TMDB Live & Cache MariaDB</strong>
+                <p>Pôsteres em alta definição, sinopses detalhadas, busca e favoritos.</p>
+              </div>
+            </div>
+            <div className="feature-item">
+              <span className="feature-icon">⚡</span>
+              <div className="feature-text">
+                <strong>Observabilidade Redis Streams</strong>
+                <p>Rastreamento de acessos, ações e moderação de comentários em tempo real.</p>
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* Right Auth Card */}
@@ -54,11 +81,12 @@ export function AuthView() {
 
           {authAlert && (
             <div id="auth-alert" className={`alert alert-${authAlert.type || 'danger'}`}>
-              {authAlert.message}
+              <span>{authAlert.type === 'success' ? '✅' : '⚠️'}</span>
+              <span>{authAlert.message}</span>
             </div>
           )}
 
-          {/* Formulários Dinâmicos */}
+          {/* Dynamic Forms */}
           {authTab === 'login' && <LoginForm />}
           {authTab === 'register' && <RegisterForm />}
           {authTab === 'forgot' && <ForgotPasswordForm />}

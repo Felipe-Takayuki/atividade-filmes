@@ -13,10 +13,12 @@ export function Navbar() {
       <header className="navbar">
         <div className="container navbar-container">
           <div className="brand">
-            <span className="brand-icon">🎬</span>
+            <div className="brand-icon-box">
+              <span className="brand-icon">🎬</span>
+            </div>
             <div className="brand-text">
               <span className="brand-title">Tom Hanks</span>
-              <span className="brand-subtitle">Catálogo & Troca de Senha Segura</span>
+              <span className="brand-subtitle">Catálogo Cinematográfico & Autenticação Segura</span>
             </div>
           </div>
 
@@ -32,7 +34,7 @@ export function Navbar() {
                   id="nav-user-role"
                   className={`badge-role badge-${user.role || 'usuario'}`}
                 >
-                  {user.role || 'usuario'}
+                  {user.role === 'admin' ? '👑 Admin' : 'Usuário'}
                 </span>
               </div>
 
@@ -44,13 +46,6 @@ export function Navbar() {
                     className="btn btn-outline-primary btn-sm"
                     title="Consultar Logs de Auditoria (Redis Streams)"
                     onClick={() => setShowLogsModal(true)}
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '0.35rem',
-                      border: '1px solid rgba(59, 130, 246, 0.4)',
-                      color: '#60a5fa'
-                    }}
                   >
                     <span>📋</span>
                     <span>Logs de Auditoria</span>
@@ -61,13 +56,6 @@ export function Navbar() {
                     className="btn btn-outline-warning btn-sm"
                     title="Promover usuário para Administrador por e-mail"
                     onClick={() => setShowPromoteModal(true)}
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '0.35rem',
-                      border: '1px solid rgba(245, 158, 11, 0.4)',
-                      color: 'var(--accent-gold)'
-                    }}
                   >
                     <span>👑</span>
                     <span>Promover Admin</span>
@@ -82,12 +70,14 @@ export function Navbar() {
                 onClick={logout}
               >
                 <svg
-                  width="16"
-                  height="16"
+                  width="15"
+                  height="15"
                   viewBox="0 0 24 24"
                   fill="none"
                   stroke="currentColor"
                   strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
                 >
                   <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
                   <polyline points="16 17 21 12 16 7" />

@@ -24,8 +24,14 @@ export function MovieCard({ movie, onToggleFavorite, onOpenComments }) {
           </div>
         )}
 
+        {/* Ambient Gradient Overlay */}
+        <div className="poster-overlay" />
+
         {movie.vote_average > 0 && (
-          <div className="badge-rating">⭐ {movie.vote_average.toFixed(1)}</div>
+          <div className="badge-rating" title={`Nota TMDB: ${movie.vote_average.toFixed(1)}/10`}>
+            <span>⭐</span>
+            <span>{movie.vote_average.toFixed(1)}</span>
+          </div>
         )}
 
         {movie.release_year && movie.release_year !== 'N/A' && (
@@ -34,11 +40,18 @@ export function MovieCard({ movie, onToggleFavorite, onOpenComments }) {
       </div>
 
       <div className="movie-details">
-        <h3 className="movie-title">{movie.title}</h3>
+        <h3 className="movie-title" title={movie.title}>
+          {movie.title}
+        </h3>
         {movie.character && (
-          <div className="movie-character">🎭 {movie.character}</div>
+          <div className="movie-character" title={`Papel: ${movie.character}`}>
+            <span>🎭</span>
+            <span>{movie.character}</span>
+          </div>
         )}
-        <p className="movie-synopsis">{movie.overview}</p>
+        <p className="movie-synopsis" title={movie.overview}>
+          {movie.overview || 'Sinopse não informada pelo TMDB.'}
+        </p>
 
         <div className="movie-actions">
           <button
@@ -52,7 +65,7 @@ export function MovieCard({ movie, onToggleFavorite, onOpenComments }) {
 
           <button
             className="btn-action btn-comments"
-            title="Ver ou adicionar anotações"
+            title="Ver ou adicionar comentários sobre o filme"
             onClick={() => onOpenComments(movie)}
           >
             <span className="btn-icon">💬</span>

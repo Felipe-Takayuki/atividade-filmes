@@ -62,25 +62,40 @@ export function AdminPromoteModal({ isOpen, onClose }) {
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="modal-dialog" style={{ maxWidth: '480px' }}>
+      <div className="modal-dialog" style={{ maxWidth: '520px' }}>
         <div className="modal-content">
           {/* Header */}
           <div className="modal-header">
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-              <span style={{ fontSize: '1.4rem' }}>👑</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  width: '42px',
+                  height: '42px',
+                  borderRadius: '12px',
+                  background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.22), rgba(217, 119, 6, 0.08))',
+                  border: '1px solid rgba(245, 158, 11, 0.35)',
+                  boxShadow: '0 0 16px rgba(245, 158, 11, 0.2)',
+                  fontSize: '1.35rem'
+                }}
+              >
+                👑
+              </div>
               <div>
-                <h3 className="modal-movie-title" style={{ fontSize: '1.1rem' }}>
+                <h3 className="modal-movie-title" style={{ fontSize: '1.2rem', margin: 0 }}>
                   Promover Usuário a Administrador
                 </h3>
-                <p className="modal-movie-meta" style={{ fontSize: '0.75rem', color: '#94a3b8' }}>
-                  Controle de Acesso por Papel (RBAC)
+                <p className="modal-movie-meta" style={{ fontSize: '0.8rem', color: '#94a3b8', margin: '0.2rem 0 0' }}>
+                  Controle de Acesso por Papel (RBAC) &bull; Microsserviço de Auth
                 </p>
               </div>
             </div>
             <button
               id="btn-close-promote-modal"
               className="modal-close-btn"
-              title="Fechar"
+              title="Fechar (Esc)"
               onClick={onClose}
             >
               &times;
@@ -92,33 +107,35 @@ export function AdminPromoteModal({ isOpen, onClose }) {
             <div
               className="privacy-note"
               style={{
-                background: 'rgba(234, 179, 8, 0.08)',
-                borderColor: 'rgba(234, 179, 8, 0.25)',
-                marginBottom: '1rem'
+                background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.1), rgba(217, 119, 6, 0.05))',
+                borderColor: 'rgba(245, 158, 11, 0.3)',
+                color: '#fbbf24',
+                marginBottom: '1.25rem'
               }}
             >
-              <span>ℹ️</span>
-              <p>
-                <strong>Ação Exclusiva de Admin:</strong> Informe o e-mail de um usuário cadastrado
-                para conceder privilégios administrativos (como moderação global de comentários).
+              <span style={{ fontSize: '1.2rem' }}>👑</span>
+              <p style={{ margin: 0 }}>
+                <strong>Ação Administrativa:</strong> Conceda privilégios de administrador para um usuário já cadastrado. Administradores podem moderar comentários e visualizar os logs de auditoria no Redis Streams.
               </p>
             </div>
 
             {error && (
-              <div className="alert alert-danger text-xs" style={{ marginBottom: '1rem' }}>
-                ⚠️ {error}
+              <div className="alert alert-danger text-xs">
+                <span>⚠️</span>
+                <span>{error}</span>
               </div>
             )}
 
             {successMsg && (
-              <div className="alert alert-success text-xs" style={{ marginBottom: '1rem' }}>
-                ✅ {successMsg}
+              <div className="alert alert-success text-xs">
+                <span>✅</span>
+                <span>{successMsg}</span>
               </div>
             )}
 
-            <form onSubmit={handleSubmit} className="auth-form" style={{ marginTop: '0.5rem' }}>
+            <form onSubmit={handleSubmit} className="auth-form" style={{ marginTop: '0.75rem' }}>
               <div className="form-group">
-                <label htmlFor="promote-email" style={{ fontSize: '0.85rem', fontWeight: 600 }}>
+                <label htmlFor="promote-email">
                   E-mail do Usuário Cadastrado:
                 </label>
                 <div className="input-wrapper">
@@ -140,7 +157,7 @@ export function AdminPromoteModal({ isOpen, onClose }) {
                 style={{
                   display: 'flex',
                   gap: '0.75rem',
-                  marginTop: '1.25rem',
+                  marginTop: '1.75rem',
                   justifyContent: 'flex-end'
                 }}
               >
@@ -156,15 +173,9 @@ export function AdminPromoteModal({ isOpen, onClose }) {
                   type="submit"
                   id="btn-confirm-promote"
                   className="btn btn-primary btn-sm"
-                  style={{
-                    background: 'linear-gradient(135deg, #eab308 0%, #ca8a04 100%)',
-                    borderColor: '#ca8a04',
-                    color: '#0f172a',
-                    fontWeight: 700
-                  }}
                   disabled={submitting || !email.trim()}
                 >
-                  <span>{submitting ? 'Promovendo...' : '👑 Promover para Admin'}</span>
+                  <span>{submitting ? 'Promovendo no Microsserviço...' : '👑 Promover para Admin'}</span>
                 </button>
               </div>
             </form>

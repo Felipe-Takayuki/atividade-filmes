@@ -83,7 +83,7 @@ export function CommentsModal({ movie, onClose, onCommentsCountChange }) {
     try {
       const res = await api.addComment(movieId, texto);
       setCommentText('');
-      showToast('Comentário salvo com sucesso!', 'success');
+      showToast('Comentário publicado com sucesso!', 'success');
 
       if (res?.comment) {
         setComments((prev) => {
@@ -115,8 +115,8 @@ export function CommentsModal({ movie, onClose, onCommentsCountChange }) {
       await api.deleteComment(commentId);
       showToast(
         isAdminModeration
-          ? 'Comentário de outro usuário removido por moderação.'
-          : 'Comentário removido.',
+          ? 'Comentário removido via moderação de administrador.'
+          : 'Comentário excluído.',
         'info'
       );
 
@@ -140,32 +140,47 @@ export function CommentsModal({ movie, onClose, onCommentsCountChange }) {
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="modal-dialog">
+      <div className="modal-dialog" style={{ maxWidth: '640px' }}>
         <div className="modal-content">
           {/* Header */}
           <div className="modal-header">
             <div className="modal-movie-info">
-              {movie.poster_url && (
+              {movie.poster_url ? (
                 <img
                   id="modal-poster"
                   src={movie.poster_url}
                   alt={movie.title}
                   className="modal-poster-thumb"
                 />
+              ) : (
+                <div
+                  style={{
+                    width: '48px',
+                    height: '70px',
+                    borderRadius: '8px',
+                    background: '#151d32',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '1.5rem'
+                  }}
+                >
+                  🎬
+                </div>
               )}
               <div>
                 <h3 id="modal-title" className="modal-movie-title">
                   {movie.title}
                 </h3>
                 <p id="modal-year" className="modal-movie-meta">
-                  {movie.release_year || 'Ano N/A'} · Tom Hanks
+                  {movie.release_year || 'Ano N/A'} &bull; Tom Hanks
                 </p>
               </div>
             </div>
             <button
               id="btn-close-modal"
               className="modal-close-btn"
-              title="Fechar"
+              title="Fechar (Esc)"
               onClick={onClose}
             >
               &times;
@@ -176,10 +191,8 @@ export function CommentsModal({ movie, onClose, onCommentsCountChange }) {
           <div className="modal-body">
             <div className="privacy-note">
               <span>💬</span>
-              <p>
-                <strong>Comentários da Comunidade:</strong> Todos os usuários cadastrados podem ver
-                os comentários deste filme. Autores podem excluir seus próprios comentários, e
-                administradores têm permissão exclusiva de moderação para remover comentários.
+              <p style={{ margin: 0 }}>
+                <strong>Comentários da Comunidade:</strong> Compartilhe suas impressões e anotações sobre este filme. Autores podem remover seus próprios comentários, e Administradores possuem permissão de moderação global.
               </p>
             </div>
 
@@ -202,9 +215,9 @@ export function CommentsModal({ movie, onClose, onCommentsCountChange }) {
                   type="submit"
                   id="btn-save-comment"
                   className="btn btn-primary btn-sm"
-                  disabled={saving}
+                  disabled={saving || !commentText.trim()}
                 >
-                  <span>{saving ? 'Salvando...' : 'Salvar Comentário'}</span>
+                  <span>{saving ? 'Salvando comentário...' : 'Salvar Comentário'}</span>
                 </button>
               </div>
             </form>
@@ -222,17 +235,22 @@ export function CommentsModal({ movie, onClose, onCommentsCountChange }) {
               </h4>
 
               {loading ? (
-                <div className="text-center" style={{ padding: '1.5rem 0' }}>
+                <div className="text-center" style={{ padding: '2rem 0' }}>
                   <div className="spinner" />
+                  <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Carregando anotações...</p>
                 </div>
               ) : error ? (
-                <div className="alert alert-danger text-xs">Erro: {error}</div>
+                <div className="alert alert-danger text-xs">
+                  <span>⚠️</span>
+                  <span>Erro: {error}</span>
+                </div>
               ) : comments.length === 0 ? (
                 <div
                   className="text-center text-muted text-xs"
-                  style={{ padding: '1.5rem 0' }}
+                  style={{ padding: '2.5rem 0', background: 'rgba(255, 255, 255, 0.02)', borderRadius: '12px', border: '1px dashed rgba(255, 255, 255, 0.1)' }}
                 >
-                  Nenhum comentário adicionado ainda. Seja o primeiro a comentar!
+                  <span style={{ fontSize: '2rem', display: 'block', marginBottom: '0.5rem' }}>💭</span>
+                  Nenhum comentário adicionado ainda. Seja o primeiro a registrar sua nota!
                 </div>
               ) : (
                 <div id="comments-list" className="comments-list">
@@ -250,20 +268,20 @@ export function CommentsModal({ movie, onClose, onCommentsCountChange }) {
                             style={{
                               display: 'flex',
                               alignItems: 'center',
-                              gap: '0.45rem',
-                              marginBottom: '0.4rem',
+                              gap: '0.5rem',
+                              marginBottom: '0.45rem',
                               flexWrap: 'wrap'
                             }}
                           >
                             <span
                               className="comment-author-name"
                               style={{
-                                fontWeight: 600,
-                                fontSize: '0.85rem',
+                                fontWeight: 700,
+                                fontSize: '0.875rem',
                                 color: '#f8fafc',
                                 display: 'inline-flex',
                                 alignItems: 'center',
-                                gap: '0.3rem'
+                                gap: '0.35rem'
                               }}
                             >
                               <span>👤</span>
@@ -274,13 +292,13 @@ export function CommentsModal({ movie, onClose, onCommentsCountChange }) {
                               <span
                                 className="comment-author-tag"
                                 style={{
-                                  fontSize: '0.68rem',
-                                  padding: '0.1rem 0.4rem',
+                                  fontSize: '0.7rem',
+                                  padding: '0.12rem 0.45rem',
                                   borderRadius: '4px',
                                   background: 'rgba(59, 130, 246, 0.15)',
                                   color: '#93c5fd',
                                   border: '1px solid rgba(59, 130, 246, 0.3)',
-                                  fontWeight: 500
+                                  fontWeight: 600
                                 }}
                               >
                                 Você
@@ -291,19 +309,19 @@ export function CommentsModal({ movie, onClose, onCommentsCountChange }) {
                               className={`badge-role badge-${comment.usuario_role || 'usuario'}`}
                               style={{
                                 fontSize: '0.65rem',
-                                padding: '0.1rem 0.4rem',
+                                padding: '0.12rem 0.45rem',
                                 margin: 0
                               }}
                             >
-                              {comment.usuario_role || 'usuario'}
+                              {comment.usuario_role === 'admin' ? '👑 Admin' : 'Usuário'}
                             </span>
 
                             <div
                               className="comment-date"
                               style={{
                                 marginLeft: 'auto',
-                                marginTop: 0,
-                                fontSize: '0.725rem'
+                                fontSize: '0.75rem',
+                                color: 'var(--text-dim)'
                               }}
                             >
                               📅 {formatDate(comment.criado_em)}

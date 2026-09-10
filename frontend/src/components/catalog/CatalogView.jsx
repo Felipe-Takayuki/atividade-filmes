@@ -129,7 +129,7 @@ export function CatalogView() {
               Filmes com <span className="text-gold">Tom Hanks</span>
             </h2>
             <p className="catalog-subheading">
-              Pôsteres, títulos e sinopses carregados ao vivo da API TMDB
+              Filmografia completa, pôsteres e sinopses integrados com a API TMDB e banco MariaDB
             </p>
           </div>
 
@@ -149,7 +149,8 @@ export function CatalogView() {
         {/* Status / Alerts */}
         {error && (
           <div id="catalog-alert" className="alert alert-danger">
-            Aviso: {error}
+            <span>⚠️</span>
+            <span>Aviso: {error}</span>
           </div>
         )}
 
@@ -157,7 +158,12 @@ export function CatalogView() {
         {loading && (
           <div id="loading-state" className="loading-state">
             <div className="spinner" />
-            <p>Consultando a API da TMDB e seu banco MariaDB...</p>
+            <p style={{ fontWeight: 600, color: '#f8fafc', marginBottom: '0.35rem' }}>
+              Consultando a API da TMDB e seu banco MariaDB...
+            </p>
+            <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+              Carregando sinopses, capas e contagem de notas em tempo real.
+            </p>
           </div>
         )}
 
