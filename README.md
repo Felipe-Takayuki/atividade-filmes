@@ -1,69 +1,73 @@
-# 🎬 Catálogo de Filmes — Tom Hanks (Microsserviços Desacoplados)
+# 🎬 Catálogo de Filmes — Tom Hanks (Microsserviços, RBAC & Logs de Auditoria)
 
-> Atividade Prática 3 da disciplina **ISW055 - Introdução à Computação em Nuvem**  
+> Atividades Práticas 3, 4 e 5 da disciplina **ISW055 - Introdução à Computação em Nuvem**  
 > Professor: **Allan Siriani** ([@siriani](https://github.com/siriani))
 
 ---
 
-## 📌 Visão Geral da Atividade 3
+## 📌 Visão Geral da Arquitetura
 
-Nesta atividade, a arquitetura da **Atividade 2 (monólito)** foi evoluída para uma **arquitetura de microsserviços desacoplados**. Toda a lógica de gestão de usuários e autenticação (**login, cadastro, emissão de JWT, papéis de usuário `role` e recuperação de senha**) foi isolada no microsserviço independente (**`auth-service`**), que opera exclusivamente na rede interna do Docker **sem qualquer porta publicada para o host**.
+O sistema implementa uma **arquitetura de microsserviços desacoplados e distribuídos** para exibição de filmes, autenticação segura com RBAC e observabilidade centralizada com Redis Streams:
 
-O container do **`catálogo`** atua como único ponto de entrada público para o usuário final, consumindo a API do TMDB e delegando a autenticação e recuperação de senha internamente para o `auth-service`.
+1. **`catalogo`**: Ponto único de entrada público da aplicação (porta 3000), hospedando a SPA em React 19 e o backend Express que orquestra as regras de negócio de filmes, favoritos e moderação de comentários.
+2. **`auth-service`**: Microsserviço de autenticação, cadastro, papéis de usuário (`role`), tokens JWT e redefinição de senhas com envio de e-mail transacional (porta 4000 interna).
+3. **`log-service`**: Microsserviço dedicado de observabilidade e auditoria (porta 5000 interna), responsável por receber eventos de todos os serviços e gravá-los no Redis Streams via `XADD`.
+4. **`redis`**: Banco NoSQL em memória com persistência AOF (porta 6379 interna), armazenando a stream cronológica `audit:events`.
+5. **`mariadb`**: Banco de dados relacional para persistência de dados de negócio (usuários, favoritos, comentários e tokens de redefinição).
 
 ```
-               ┌─────────────────────────────────────────────────────────────┐
-               │              Rede Docker Interna (app-network)              │
-               │                                                             │
-┌─────────────┐│   ┌───────────────────────┐     ┌───────────────────────┐   │
-│  Navegador  ││   │  Catálogo + Backend   │     │     auth-service      │   │
-│ (Usuário)   │┼──>│ (Ponto Único Público) │────>│ (Auth, Roles, Senha)  │   │
-│             ││   │     Porta :3000       │HTTP │ (SEM PORTA NO HOST)   │   │
-└─────────────┘│   └───────────────────────┘     │     Porta :4000       │   │
-               │               │                 └───────────────────────┘   │
-               └───────────────┼─────────────────────────────┼───────────────┘
-                               │                             │
-                               ▼                             ▼
-                     ┌───────────────────────────────────────────────┐
-                     │                    MariaDB                    │
-                     │  (usuarios, reset_tokens, favoritos, coment.) │
-                     └───────────────────────────────────────────────┘
-                                                             │
-                                                             ▼
-                                                 ┌───────────────────────┐
-                                                 │     SMTP Externo      │
-                                                 │         Brevo         │
-                                                 └───────────────────────┘
+               ┌─────────────────────────────────────────────────────────────────────────┐
+               │                    Rede Docker Interna (app-network)                    │
+               │                                                                         │
+┌─────────────┐│   ┌───────────────────────┐         ┌───────────────────────────────┐   │
+│  Navegador  ││   │  Catálogo + Backend   │  HTTP   │         auth-service          │   │
+│ (Usuário /  │┼──>│ (Ponto Único Público) │────────>│    (Auth, Roles, Senha)       │   │
+│   Admin)    ││   │     Porta :3000       │         │    (SEM PORTA NO HOST)        │   │
+└─────────────┘│   └───────────┬───────────┘         │         Porta :4000           │   │
+               │               │                     └───────────────┬───────────────┘   │
+               │               │ Eventos                             │ Eventos           │
+               │               │ (favoritos, comentários, 403)       │ (login, 403)      │
+               │               ▼                                     ▼                   │
+               │   ┌─────────────────────────────────────────────────────────────┐       │
+               │   │             log-service (Audit & Observability)             │       │
+               │   │              Porta :5000 (SEM PORTA NO HOST)                │       │
+               │   └──────────────────────────────┬──────────────────────────────┘       │
+               │                                  │ XADD / XREVRANGE                     │
+               │                                  ▼                                      │
+               │   ┌─────────────────────────────────────────────────────────────┐       │
+               │   │               Redis Streams (audit:events)                  │       │
+               │   │             Porta :6379 (SEM PORTA NO HOST)                 │       │
+               │   └─────────────────────────────────────────────────────────────┘       │
+               └───────────────┼─────────────────────────────────────┼───────────────────┘
+                               │                                     │
+                               ▼                                     ▼
+                     ┌───────────────────────────────────────────────────┐
+                     │                      MariaDB                      │
+                     │    (usuarios, reset_tokens, favoritos, coment.)   │
+                     └───────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 🐳 Docker Compose: Dois Serviços e Rede Compartilhada
+## 🐳 Docker Compose: 4 Serviços e Rede Isolada
 
-O arquivo [`docker-compose.yml`](docker-compose.yml) orquestra os **dois serviços desacoplados** da aplicação conectados através da rede compartilhada `app-network`:
+O arquivo [`docker-compose.yml`](docker-compose.yml) orquestra os **4 serviços desacoplados** conectados através da rede compartilhada `app-network`:
 
 ```yaml
 version: '3.8'
 
-# ==============================================================================
-# ISW055 - Atividade 3: Microsserviço de Autenticação (Serviços Desacoplados)
-# Arquitetura: 2 containers em rede interna isolada
-# Autenticação e Usuários: Gerenciados pelo Microsserviço auth-service (Login, Cadastro, Roles, SMTP/Tokens)
-# Catálogo & TMDB: Gerenciados pelo container catalogo (Backend + Frontend)
-# Ponto de entrada público: APENAS o container do catálogo (porta 3000)
-# ==============================================================================
-
 services:
-  # 1. Container do Catálogo (Frontend SPA + Backend TMDB/Favoritos/Comentários) - Único com porta pública
+  # 1. Container do Catálogo (Frontend SPA + Backend TMDB/Favoritos/Comentários/Auditoria)
   catalogo:
     build:
       context: .
       dockerfile: Dockerfile
     ports:
-      - "${PORT:-3000}:3000"
+      - "${PORT:-3000}:3000" # Único serviço com porta pública
     environment:
       - PORT=3000
       - AUTH_SERVICE_URL=http://auth-service:4000
+      - LOG_SERVICE_URL=http://log-service:5000
       - DB_HOST=${DB_HOST:-mariadb}
       - DB_PORT=${DB_PORT:-3306}
       - DB_USER=${DB_USER:-aluno}
@@ -73,20 +77,21 @@ services:
       - JWT_SECRET=${JWT_SECRET:-chave_jwt_secreta_local_dev}
     depends_on:
       - auth-service
+      - log-service
     networks:
       - app-network
     restart: unless-stopped
 
-  # 2. Microsserviço de Troca de Senha (Geração de Tokens, Envio de E-mail SMTP e Redefinição)
-  # ATENÇÃO: Sem 'ports' publicado pro host - acessível APENAS via rede Docker interna
+  # 2. Microsserviço de Autenticação (Login, Cadastro, RBAC, Tokens e Troca de Senha)
   auth-service:
     build:
       context: ./auth-service
       dockerfile: Dockerfile
     expose:
-      - "4000"
+      - "4000" # Sem porta no host
     environment:
       - PORT=4000
+      - LOG_SERVICE_URL=http://log-service:5000
       - DB_HOST=${DB_HOST:-mariadb}
       - DB_PORT=${DB_PORT:-3306}
       - DB_USER=${DB_USER:-aluno}
@@ -94,15 +99,45 @@ services:
       - DB_NAME=${DB_NAME:-catalogo_filmes}
       - JWT_SECRET=${JWT_SECRET:-chave_jwt_secreta_local_dev}
       - APP_URL=${APP_URL:-http://localhost:3000}
-      - SMTP_HOST=${SMTP_HOST:-smtp-relay.brevo.com}
-      - SMTP_PORT=${SMTP_PORT:-587}
-      - SMTP_USER=${SMTP_USER:-}
-      - SMTP_PASS=${SMTP_PASS:-}
-      - SMTP_FROM=${SMTP_FROM:-Catálogo Filmes <noreply@catalogofilmes.com>}
-      - BREVO_API_KEY=${BREVO_API_KEY:-}
+    depends_on:
+      - log-service
     networks:
       - app-network
     restart: unless-stopped
+
+  # 3. Microsserviço de Observabilidade e Logs de Auditoria (Atividade 5)
+  log-service:
+    build:
+      context: ./log-service
+      dockerfile: Dockerfile
+    expose:
+      - "5000" # Sem porta no host
+    environment:
+      - PORT=5000
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_STREAM_KEY=${REDIS_STREAM_KEY:-audit:events}
+    depends_on:
+      - redis
+    networks:
+      - app-network
+    restart: unless-stopped
+
+  # 4. Redis para Streams de Auditoria (Append-Only File habilitado)
+  redis:
+    image: redis:7-alpine
+    command: redis-server --appendonly yes
+    expose:
+      - "6379" # Sem porta no host
+    volumes:
+      - redis-data:/data
+    networks:
+      - app-network
+    restart: unless-stopped
+
+volumes:
+  redis-data:
+    driver: local
 
 networks:
   app-network:
@@ -111,13 +146,13 @@ networks:
 
 ---
 
-## 🔒 Confirmação de Isolamento: Serviço de Autenticação Sem Porta no Host
+## 🔒 Confirmação de Isolamento: Microsserviços Sem Porta no Host
 
 > [!IMPORTANT]
 > **Confirmação de Segurança e Desacoplamento:**
-> - O container **`auth-service` NÃO possui a diretiva `ports:` configurada**.
-> - Ele utiliza exclusivamente **`expose: ["4000"]`**, o que significa que a porta 4000 **NÃO é publicada/mapeada para a máquina host nem para a internet**.
-> - O acesso ao `auth-service` ocorre **estritamente de forma interna** pelo container `catalogo` via DNS interno do Docker: `http://auth-service:4000`.
+> - Os containers **`auth-service`**, **`log-service`** e **`redis` NÃO possuem a diretiva `ports:` configurada**.
+> - Eles utilizam exclusivamente **`expose`**, o que significa que suas portas internas (**4000**, **5000** e **6379**) **NÃO são publicadas/mapeadas para a máquina host nem para a internet**.
+> - O acesso ocorre **estritamente de forma interna** via DNS interno do Docker na rede `app-network`.
 > - O único container com porta aberta para o host é o **`catalogo`** (`ports: - "${PORT:-3000}:3000"`), garantindo que todo o tráfego externo passe pelo ponto de entrada controlado.
 
 ### 📋 Tabela Comparativa de Exposição de Portas
@@ -125,7 +160,9 @@ networks:
 | Serviço | Porta Interna | Publicada no Host (`ports`)? | Acessível Externamente? | Comunicação Permitida |
 |---|---|---|---|---|
 | **`catalogo`** | `3000` | **Sim** (`${PORT:-3000}:3000`) | **Sim** (Navegador / Portainer) | Usuário final ↔ Aplicação |
-| **`auth-service`** | `4000` | **NÃO** (apenas `expose: 4000`) | **NÃO** (Bloqueada pro host) | Apenas interna via `app-network` (`http://auth-service:4000`) |
+| **`auth-service`** | `4000` | **NÃO** (apenas `expose: 4000`) | **NÃO** (Bloqueada pro host) | Interna via `app-network` (`http://auth-service:4000`) |
+| **`log-service`** | `5000` | **NÃO** (apenas `expose: 5000`) | **NÃO** (Bloqueada pro host) | Interna via `app-network` (`http://log-service:5000`) |
+| **`redis`** | `6379` | **NÃO** (apenas `expose: 6379`) | **NÃO** (Bloqueada pro host) | Interna via `app-network` (`redis:6379`) |
 
 ---
 
@@ -240,26 +277,39 @@ CREATE TABLE IF NOT EXISTS comentarios (
 │       ├── config/db.js              # Pool MariaDB e criação da tabela reset_tokens
 │       ├── controllers/authController.js # Lógica de login, cadastro, roles e recuperação
 │       ├── middleware/auth.js        # Geração e validação de tokens JWT
-│       ├── routes/authRoutes.js      # Endpoints /forgot-password, /verify-reset-token, etc.
+│       ├── routes/authRoutes.js      # Endpoints /login, /register, /users/promote, etc.
 │       ├── services/emailService.js  # Envio de e-mail via Brevo (SMTP / REST API)
+│       ├── services/logClient.js     # Envio de eventos de auditoria ao log-service
 │       └── index.js                  # Inicialização do auth-service (porta 4000 interna)
 │
-├── backend/                          # 🎬 Backend do Catálogo (Proxy, TMDB, Favoritos, Comentários)
+├── log-service/                      # 📋 Microsserviço de Observabilidade e Auditoria (Atividade 5)
+│   ├── Dockerfile                    # Container isolado (SEM porta pública pro host)
+│   ├── package.json                  # Dependências: express, ioredis, cors, morgan
+│   └── src/
+│       ├── config/redis.js           # Conexão com Redis e configuração da Stream audit:events
+│       ├── controllers/logController.js # Gravação (POST /logs) e Consulta (GET /logs)
+│       ├── routes/logRoutes.js       # Rotas do serviço de logs
+│       ├── services/logService.js    # Comandos Redis Streams (XADD, XREVRANGE)
+│       └── index.js                  # Inicialização do log-service (porta 5000 interna)
+│
+├── backend/                          # 🎬 Backend do Catálogo (Proxy, TMDB, Favoritos, Comentários, RBAC)
 │   ├── package.json
 │   └── src/
 │       ├── config/db.js              # Pool MariaDB e tabelas usuarios, favoritos e comentarios
-│       ├── controllers/              # authController, movieController, favoriteController, commentController
-│       ├── middleware/auth.js        # Middleware de proteção JWT e verificação de roles
-│       ├── routes/                   # authRoutes, movieRoutes, favoriteRoutes, commentRoutes
+│       ├── controllers/              # authController, movieController, favoriteController, commentController, logController
+│       ├── middleware/auth.js        # Middleware de proteção JWT e verificação de roles (com log de 403)
+│       ├── routes/                   # authRoutes, movieRoutes, favoriteRoutes, commentRoutes, logRoutes
+│       ├── services/logClient.js     # Comunicação interna HTTP com log-service
 │       ├── services/tmdbService.js   # Integração com API TMDB (filmografia Tom Hanks)
 │       └── index.js                  # Servidor Express principal (porta 3000 pública)
 │
 ├── frontend/                         # 🖥️ Interface SPA (React 19, Vite, Context API, Tema Dark)
 │   ├── src/
 │   │   ├── components/auth/          # LoginForm, RegisterForm, ForgotPasswordForm, ResetPasswordForm
-│   │   ├── components/catalog/       # MovieCard, MovieGrid, MovieModal, SearchBar
+│   │   ├── components/catalog/       # MovieCard, MovieGrid, MovieModal, CommentsModal, SearchBar
+│   │   ├── components/common/        # Navbar, AdminPromoteModal, AuditLogsModal, ToastContainer
 │   │   ├── context/AuthContext.jsx   # Gestão de estado de autenticação e papéis
-│   │   └── services/api.js           # Cliente Axios para a API
+│   │   └── services/api.js           # Cliente API com suporte a consultas de auditoria
 │   └── index.html
 │
 ├── docs/                             # 📸 Evidências Visuais e Capturas de Tela
@@ -267,8 +317,8 @@ CREATE TABLE IF NOT EXISTS comentarios (
 │   └── Group 3.png                   # Print: Fluxo completo (E-mail de Recuperação e Senha redefinida)
 │
 ├── Dockerfile                        # Build do container do Catálogo
-├── docker-compose.yml                # Orquestração dos 2 microsserviços na rede app-network
-├── .env.example                      # Modelo de variáveis de ambiente com Brevo
+├── docker-compose.yml                # Orquestração dos 4 serviços na rede app-network
+├── .env.example                      # Modelo de variáveis de ambiente completo
 └── README.md                         # Documentação completa
 ```
 
@@ -283,6 +333,10 @@ Crie seu arquivo `.env` baseado no `.env.example`:
 | `PORT` | Porta pública do catálogo no host / Portainer | `3000` |
 | `APP_URL` | URL pública da aplicação usada nos links de e-mail | `http://localhost:3000` ou subdomínio Portainer |
 | `AUTH_SERVICE_URL` | URL interna do microsserviço de autenticação | `http://auth-service:4000` |
+| `LOG_SERVICE_URL` | URL interna do microsserviço de logs de auditoria | `http://log-service:5000` |
+| `REDIS_HOST` | Host do container Redis | `redis` |
+| `REDIS_PORT` | Porta do container Redis | `6379` |
+| `REDIS_STREAM_KEY` | Nome da chave do Redis Streams para logs | `audit:events` |
 | `TMDB_API_KEY` | Chave de desenvolvedor da API TMDB | `sua_chave_tmdb` |
 | `DB_HOST` | Host do banco de dados MariaDB | `mariadb` ou `localhost` |
 | `DB_PORT` | Porta do banco MariaDB | `3306` |
@@ -462,5 +516,297 @@ O sistema adotou prioritariamente o **Padrão A (Enforcement Centralizado)**, co
 3. **Trade-offs da migração:**
    * **Vantagens ganhas:** Redução drástica da latência de rede nas operações de moderação, eliminação do acoplamento síncrono com o `auth-service` e maior escalabilidade dos serviços.
    * **Desvantagens introduzidas:** Se um usuário for rebaixado de `admin` para `usuario` ou revogado, ele ainda reteria os privilégios de moderação até que seu token JWT expirasse (a menos que fosse implementada uma lista de revogação/blacklist ou tokens de vida útil muito curta com refresh tokens).
+
+---
+
+## 📡 Atividade 5 — Observabilidade: Logs e Auditoria (Redis Streams)
+
+> Atividade Prática 5 da disciplina **ISW055 - Introdução à Computação em Nuvem**  
+> Professor: **Allan Siriani** ([@siriani](https://github.com/siriani))  
+> **Tema:** Logs e auditoria — quem fez o quê, e quando.
+
+---
+
+### 🧠 Por que um Microsserviço Próprio, e por que Redis?
+
+Até a atividade anterior, a aplicação realizava ações de negócio, mas não mantinha um histórico confiável de **quem realizou cada ação, quando e de onde**. Caso um comentário seja apagado, um usuário seja promovido para administrador ou um ataque ocorra, não havia como responder com precisão *"o que aconteceu aqui"*.
+
+#### 1. Separação de Responsabilidades e Banco de Dados Dedicado
+Cada serviço (`catalogo`, `auth-service`) poderia gravar logs no próprio banco relacional (MariaDB), mas isso violaria princípios essenciais de arquitetura:
+- **Mistura de responsabilidades:** Dados de negócio e dados de auditoria possuem ciclos de vida e garantias diferentes.
+- **Padrão de acesso assimétrico:** Log de auditoria tem padrão de escrita em altíssimo volume (*write-heavy*) e leitura esporádica (*read-rare*), dispensando joins relacionais ou transações ACID pesadas.
+- **Integridade e Não-Repúdio:** Manter os logs em um microsserviço isolado impede que um erro de código ou alteração acidental no catálogo apague o histórico de auditoria.
+
+#### 2. Por que Redis Streams (`XADD` e `XREVRANGE`)?
+Redis resolve esse cenário com altíssima performance em memória e latência sub-milissegundo:
+- **Redis Streams** é uma estrutura de dados *append-only* desenhada especificamente para logs de eventos ordenados no tempo.
+- **IDs Nativos Baseados em Tempo:** Ao gravar com `XADD audit:events * ...`, o Redis gera automaticamente um identificador único cronológico no formato `<timestamp_ms>-<sequencial>` (ex: `1725988291000-0`), garantindo ordenação perfeita mesmo em ambientes concorrentes.
+- **Consultas Eficientes:** Com o comando `XREVRANGE audit:events + - COUNT N`, a aplicação recupera os últimos $N$ eventos instantaneamente do mais recente para o mais antigo.
+- **Comparativo com Lista Simples (`LPUSH`):** Uma lista comum via `LPUSH` funcionaria, mas perderia os identificadores cronológicos nativos, a capacidade de consulta por faixas temporais e o suporte a grupos de consumidores (*consumer groups* via `XREADGROUP`) para escalabilidade futura.
+
+---
+
+### 🏗️ Arquitetura do Serviço de Logs
+
+O sistema segue rigorosamente o princípio de centralização:
+- **Nenhum serviço escreve diretamente no Redis:** Todos os serviços comunicam-se via HTTP com o `log-service` através da rede interna do Docker (`app-network`).
+- **O `log-service`** é o único responsável por se conectar ao Redis e executar os comandos `XADD` e `XREVRANGE`.
+- **A consulta aos logs** é uma rota exclusiva de administradores, protegida pelo mesmo enforcement RBAC da Atividade 4.
+
+```
+┌──────────────────────────────────────┐     ┌──────────────────────────────────────┐
+│          Catálogo (Backend)          │     │             auth-service             │
+│   • favoritar_filme                  │     │   • login                            │
+│   • desfavoritar_filme               │     │   • 403 tentativa sem papel admin    │
+│   • comentar                         │     │   • promover_admin                   │
+│   • apagar_comentario (autor/admin)  │     │                                      │
+│   • 403 tentativa de moderação       │     │                                      │
+└──────────────────┬───────────────────┘     └──────────────────┬───────────────────┘
+                   │                                            │
+                   │ POST http://log-service:5000/logs          │ POST http://log-service:5000/logs
+                   │ (Payload com usuario_id, acao, ip, etc.)   │
+                   ▼                                            ▼
+       ┌─────────────────────────────────────────────────────────────┐
+       │             log-service (Microsserviço Express)             │
+       │              Porta 5000 (Sem porta no host)                 │
+       │        Validação de Payload + Injeção de Timestamp          │
+       └──────────────────────────────┬──────────────────────────────┘
+                                      │
+                                      │ XADD audit:events * ...
+                                      ▼
+       ┌─────────────────────────────────────────────────────────────┐
+       │             Redis Streams (Chave: audit:events)             │
+       │              Porta 6379 (Sem porta no host)                 │
+       │              Persistência Append-Only (AOF)                 │
+       └──────────────────────────────┬──────────────────────────────┘
+                                      │
+                                      │ XREVRANGE audit:events + - COUNT N
+                                      ▼
+       ┌─────────────────────────────────────────────────────────────┐
+       │            Consulta de Auditoria (Admin Apenas)             │
+       │             GET /api/logs (Enforcement RBAC)                │
+       └─────────────────────────────────────────────────────────────┘
+```
+
+---
+
+### 📋 Requisitos Implementados
+
+#### 1. Novo Microsserviço: `log-service`
+- Hospedado no diretório [`log-service/`](log-service/).
+- Container isolado com Node.js 20 Alpine e biblioteca [`ioredis`](log-service/package.json).
+- Conectado estritamente na rede interna do Docker `app-network`, utilizando `expose: ["5000"]` **sem qualquer porta publicada para o host**.
+
+#### 2. Eventos Auditados no Sistema
+O sistema rastreia e audita todas as ações relevantes do ciclo de vida da aplicação:
+
+| Evento (`acao`) | Origem | Descrição | Nível de Sensibilidade |
+|---|---|---|:---:|
+| **`login`** | `authController.js` | Login bem-sucedido de usuário informando credenciais. | 🟢 Informativo |
+| **`logout`** | `authController.js` | Encerramento de sessão e invalidação de cookie/token. | ⚪ Informativo |
+| **`favoritar_filme`** | `favoriteController.js` | Usuário adiciona um título à sua lista pessoal. | 🟡 Operação |
+| **`desfavoritar_filme`** | `favoriteController.js` | Usuário remove um título da sua lista pessoal. | 🟡 Operação |
+| **`comentar`** | `commentController.js` | Publicação de comentário associado a um filme do catálogo. | 🔵 Conteúdo |
+| **`apagar_comentario`** | `commentController.js` | Exclusão de comentário (registra se foi pelo próprio autor ou moderação de admin). | 🟠 Moderação |
+| **`acao_negada_403`** | `commentController.js`, `authController.js`, `auth.js`, `logController.js` | **Tentativa de ação não autorizada por permissão:** tentativa de excluir comentário alheio, tentativa de promover usuário a admin, ou tentativa de consultar logs de auditoria sem ser admin. | 🔴 **Segurança** |
+| **`promover_admin`** | `authController.js` | Administrador eleva outro usuário para a função `admin`. | 🟣 Segurança |
+
+#### 3. Estrutura de Cada Registro de Auditoria
+Cada entrada armazenada no Redis Streams cumpre todos os requisitos mínimos e inclui o **bônus de captura do IP de origem**:
+
+```json
+{
+  "id": "1725988291000-0",
+  "usuario_id": "1",
+  "usuario_email": "admin@exemplo.com",
+  "acao": "acao_negada_403",
+  "timestamp": "2026-09-10T14:35:00.123Z",
+  "ip": "192.168.1.100",
+  "detalhes": {
+    "motivo": "Tentativa de excluir comentário de outro usuário sem permissão de administrador",
+    "recurso": "DELETE /api/comments/42",
+    "autor_original_id": 2,
+    "papel_solicitante": "usuario"
+  }
+}
+```
+
+- **`usuario_id`**: Identificador numérico do usuário no MariaDB.
+- **`acao`**: Identificador padronizado da ação realizada.
+- **`timestamp`**: Carimbo de data/hora ISO 8601 de quando o evento ocorreu.
+- **`ip`** *(Bônus)*: Endereço IP do cliente extraído com suporte a headers de proxy reverso (`x-forwarded-for`) e Docker bridge.
+- **`detalhes`**: Metadados adicionais em formato JSON serializado (IDs dos filmes, IDs dos comentários, rota acessada, etc.).
+
+#### 4. Persistência em Redis Streams
+- O serviço Redis utiliza a imagem oficial `redis:7-alpine`.
+- Configurado com `--appendonly yes` para garantir persistência contínua dos eventos gravados em disco.
+- Mapeamento de volume Docker nomeado `redis-data:/data` para persistência permanente entre reinicializações de containers.
+
+#### 5. Endpoint de Consulta — Exclusivo para Administrador
+- **Rota:** `GET /api/logs?limit=50&acao=&usuario_id=`
+- **Proteção RBAC (Padrão A):** O catálogo valida a identidade e o papel `admin` do requisitante.
+- **Comportamento para Usuário Comum:** Se um usuário sem papel `admin` tentar acessar esta rota, o sistema:
+  1. Rejeita imediatamente a requisição com **`HTTP 403 Forbidden`**.
+  2. Registra automaticamente no Redis Streams o evento **`acao_negada_403`** contendo o `usuario_id`, IP e motivo da tentativa não autorizada.
+- **Comportamento para Administrador:** O `log-service` executa `XREVRANGE audit:events + - COUNT N`, parseia as entradas e retorna a lista ordenada de eventos.
+
+---
+
+### 💻 Interface Gráfica de Observabilidade
+
+Para facilitar a demonstração e auditoria visual, a aplicação inclui o componente [`AuditLogsModal.jsx`](frontend/src/components/common/AuditLogsModal.jsx):
+- **Botão `📋 Logs de Auditoria` no Header:** Exibido dinamicamente na barra superior **apenas para usuários com papel `admin`**.
+- **Visualização em Tabela Rica:**
+  - Carimbo de Data e Hora formatado localmente.
+  - Badges coloridos intuitivos por tipo de ação (verde para login, azul para comentário, amarelo para favorito e vermelho vibrante com alerta para `403 Proibido`).
+  - Identificação do usuário (`usuario_id` e e-mail).
+  - Endereço IP do cliente.
+  - Painel expansível com detalhes em JSON formatado.
+- **Filtro em Tempo Real:** Permite filtrar eventos por tipo de ação (`login`, `comentar`, `favoritar_filme`, `acao_negada_403`, etc.).
+- **Estatísticas da Stream:** Exibe em tempo real o nome da chave Redis (`audit:events`) e a contagem total de eventos armazenados.
+- **Botão de Atualização Instantânea (`🔄 Atualizar`):** Recarrega os eventos da Stream sob demanda.
+
+---
+
+### 🧪 Roteiro de Demonstração (Requisito 6)
+
+Para reproduzir o teste solicitado na atividade:
+
+#### Passo 1: Login com Usuário Comum
+Faça login na aplicação com uma conta comum (papel `usuario`):
+```bash
+curl -X POST http://localhost:3000/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email": "aluno@exemplo.com", "senha": "senha123"}'
+```
+> *(Gera o evento de auditoria `login`)*
+
+#### Passo 2: Favoritar um Filme
+Favorite qualquer filme da filmografia do Tom Hanks:
+```bash
+curl -X POST http://localhost:3000/api/favorites \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <TOKEN_USUARIO>" \
+  -d '{"tmdb_movie_id": 13, "titulo": "Forrest Gump"}'
+```
+> *(Gera o evento de auditoria `favoritar_filme`)*
+
+#### Passo 3: Comentar no Filme
+Publique um comentário em um filme:
+```bash
+curl -X POST http://localhost:3000/api/movies/13/comments \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <TOKEN_USUARIO>" \
+  -d '{"texto": "Filme sensacional, clássico absoluto!"}'
+```
+> *(Gera o evento de auditoria `comentar`)*
+
+#### Passo 4: Tentar Ação de Admin sem Privilégio (HTTP 403)
+Tente excluir o comentário de outro usuário ou acessar a rota de auditoria como usuário comum:
+```bash
+# Tentativa 1: Excluir comentário alheio sem ser admin
+curl -X DELETE http://localhost:3000/api/comments/999 \
+  -H "Authorization: Bearer <TOKEN_USUARIO>"
+
+# Tentativa 2: Acessar endpoint de auditoria sem ser admin
+curl -X GET http://localhost:3000/api/logs \
+  -H "Authorization: Bearer <TOKEN_USUARIO>"
+```
+**Resposta:** `HTTP 403 Forbidden`
+```json
+{
+  "error": "Acesso proibido. Apenas administradores têm permissão para consultar os logs de auditoria.",
+  "code": "FORBIDDEN_NOT_ADMIN"
+}
+```
+> *(Gera o evento de auditoria `acao_negada_403` no Redis Streams)*
+
+#### Passo 5: Login como Administrador
+Faça login com uma conta com papel `admin`:
+```bash
+curl -X POST http://localhost:3000/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email": "admin@exemplo.com", "senha": "senha123"}'
+```
+
+#### Passo 6: Consultar os Logs de Auditoria como Admin
+Abra o modal **`📋 Logs de Auditoria`** no navegador ou consulte a rota via terminal:
+```bash
+curl -X GET http://localhost:3000/api/logs?limit=10 \
+  -H "Authorization: Bearer <TOKEN_ADMIN>"
+```
+
+**Exemplo de Resposta do Redis Streams (Ordem Cronológica Decrescente):**
+```json
+{
+  "success": true,
+  "total_retornados": 5,
+  "stream_stats": {
+    "stream_key": "audit:events",
+    "total_events": 5
+  },
+  "logs": [
+    {
+      "id": "1725988350000-0",
+      "usuario_id": "1",
+      "acao": "login",
+      "timestamp": "2026-09-10T14:32:30.000Z",
+      "ip": "172.20.0.1",
+      "usuario_email": "admin@exemplo.com",
+      "detalhes": { "nome": "Administrador", "role": "admin" }
+    },
+    {
+      "id": "1725988340000-0",
+      "usuario_id": "2",
+      "acao": "acao_negada_403",
+      "timestamp": "2026-09-10T14:32:20.000Z",
+      "ip": "172.20.0.1",
+      "usuario_email": "aluno@exemplo.com",
+      "detalhes": {
+        "motivo": "Tentativa de consulta aos logs de auditoria sem privilégio de administrador",
+        "recurso": "GET /api/logs",
+        "papel_solicitante": "usuario"
+      }
+    },
+    {
+      "id": "1725988330000-0",
+      "usuario_id": "2",
+      "acao": "comentar",
+      "timestamp": "2026-09-10T14:32:10.000Z",
+      "ip": "172.20.0.1",
+      "usuario_email": "aluno@exemplo.com",
+      "detalhes": {
+        "tmdb_movie_id": 13,
+        "comentario_id": 15,
+        "texto_resumo": "Filme sensacional, clássico absoluto!"
+      }
+    },
+    {
+      "id": "1725988320000-0",
+      "usuario_id": "2",
+      "acao": "favoritar_filme",
+      "timestamp": "2026-09-10T14:32:00.000Z",
+      "ip": "172.20.0.1",
+      "usuario_email": "aluno@exemplo.com",
+      "detalhes": {
+        "tmdb_movie_id": 13,
+        "titulo": "Forrest Gump"
+      }
+    },
+    {
+      "id": "1725988310000-0",
+      "usuario_id": "2",
+      "acao": "login",
+      "timestamp": "2026-09-10T14:31:50.000Z",
+      "ip": "172.20.0.1",
+      "usuario_email": "aluno@exemplo.com",
+      "detalhes": { "nome": "Aluno Silva", "role": "usuario" }
+    }
+  ]
+}
+```
+
+Todos os eventos aparecem preservando a **ordem cronológica perfeita**, comprovando a eficácia dos **Redis Streams** e o isolamento dos microsserviços.
+
 
 
