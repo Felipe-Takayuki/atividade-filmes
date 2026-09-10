@@ -24,7 +24,7 @@ export function CatalogView() {
       setMovies(data.movies || []);
     } catch (err) {
       console.error('Erro ao carregar catálogo:', err);
-      setError(err.message || 'Falha ao buscar catálogo de filmes na TMDB.');
+      setError(err.message || 'Falha ao carregar catálogo de filmes.');
     } finally {
       setLoading(false);
     }
@@ -129,7 +129,7 @@ export function CatalogView() {
               Filmes com <span className="text-gold">Tom Hanks</span>
             </h2>
             <p className="catalog-subheading">
-              Filmografia completa, pôsteres e sinopses integrados com a API TMDB e banco MariaDB
+              Filmografia completa, pôsteres oficiais, sinopses e notas dos fãs
             </p>
           </div>
 
@@ -159,10 +159,10 @@ export function CatalogView() {
           <div id="loading-state" className="loading-state">
             <div className="spinner" />
             <p style={{ fontWeight: 600, color: '#f8fafc', marginBottom: '0.35rem' }}>
-              Consultando a API da TMDB e seu banco MariaDB...
+              Carregando catálogo de filmes...
             </p>
             <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-              Carregando sinopses, capas e contagem de notas em tempo real.
+              Atualizando sinopses, capas e notas em tempo real.
             </p>
           </div>
         )}

@@ -155,7 +155,7 @@ export function AuditLogsModal({ isOpen, onClose }) {
                   Logs de Auditoria
                 </h3>
                 <p className="modal-movie-meta" style={{ fontSize: '0.8rem', color: '#94a3b8', margin: '0.2rem 0 0' }}>
-                  Observabilidade em tempo real com Redis Streams (XADD / XREVRANGE)
+                  Histórico de segurança e registro de eventos em tempo real
                 </p>
               </div>
             </div>
@@ -201,7 +201,7 @@ export function AuditLogsModal({ isOpen, onClose }) {
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem', flexWrap: 'wrap' }}>
               {stats && (
                 <span style={{ fontSize: '0.8rem', color: '#64748b' }}>
-                  Stream: <code style={{ color: '#94a3b8' }}>{stats.stream_key}</code> ({stats.total_events} eventos)
+                  Total de registros: <strong style={{ color: '#94a3b8' }}>{stats.total_events}</strong>
                 </span>
               )}
               <button
@@ -225,7 +225,7 @@ export function AuditLogsModal({ isOpen, onClose }) {
             {loading && logs.length === 0 ? (
               <div style={{ textAlign: 'center', padding: '3rem 0', color: '#94a3b8' }}>
                 <div className="spinner" style={{ margin: '0 auto 1rem' }} />
-                <p>Consultando eventos no Redis Streams...</p>
+                <p>Carregando eventos de auditoria...</p>
               </div>
             ) : logs.length === 0 ? (
               <div style={{ textAlign: 'center', padding: '3.5rem 1rem', color: '#64748b' }}>

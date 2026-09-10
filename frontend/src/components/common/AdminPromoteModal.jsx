@@ -75,7 +75,7 @@ export function AdminPromoteModal({ isOpen, onClose }) {
                   Promover para Administrador
                 </h3>
                 <p className="modal-movie-meta" style={{ fontSize: '0.8rem', color: '#94a3b8', margin: '0.2rem 0 0' }}>
-                  Controle de Acesso por Papel (RBAC)
+                  Gestão de permissões de moderadores
                 </p>
               </div>
             </div>

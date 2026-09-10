@@ -67,7 +67,7 @@ export function Navbar() {
                   <button
                     id="btn-open-logs-modal"
                     className="btn btn-ghost-admin btn-sm"
-                    title="Consultar Logs de Auditoria (Redis Streams)"
+                    title="Consultar Logs de Auditoria"
                     onClick={() => setShowLogsModal(true)}
                   >
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

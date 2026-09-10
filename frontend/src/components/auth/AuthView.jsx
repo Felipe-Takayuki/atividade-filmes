@@ -15,14 +15,14 @@ export function AuthView() {
         <div className="auth-hero">
           <div className="hero-badge">
             <span className="hero-badge-dot"></span>
-            ISW055 &bull; Microsserviços
+            Coleção Exclusiva
           </div>
           <h1 className="hero-title">
             Catálogo de filmes <span className="text-gold">Tom Hanks</span>
           </h1>
           <p className="hero-desc">
-            Autenticação isolada em microsserviço independente, catálogo TMDB
-            em tempo real, controle de acesso RBAC e observabilidade via Redis Streams.
+            Explore a filmografia completa, descubra sinopses, organize seus títulos
+            favoritos e compartilhe sua opinião sobre cada produção.
           </p>
 
           <div className="hero-features">
@@ -33,8 +33,8 @@ export function AuthView() {
                 </svg>
               </div>
               <div className="feature-text">
-                <strong>Autenticação Isolada</strong>
-                <p>JWT assinado com HS256, cookies HttpOnly e controle RBAC completo.</p>
+                <strong>Conta Pessoal e Favoritos</strong>
+                <p>Crie sua conta para salvar seus filmes favoritos e gerenciar sua lista pessoal.</p>
               </div>
             </div>
             <div className="feature-item">
@@ -51,19 +51,19 @@ export function AuthView() {
                 </svg>
               </div>
               <div className="feature-text">
-                <strong>TMDB Live & Cache</strong>
-                <p>Filmografia em alta definição, sinopses detalhadas, busca e favoritos.</p>
+                <strong>Filmografia Completa</strong>
+                <p>Obras em alta definição com sinopses, personagens, anos de lançamento e avaliações.</p>
               </div>
             </div>
             <div className="feature-item">
               <div className="feature-icon-box">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
                 </svg>
               </div>
               <div className="feature-text">
-                <strong>Observabilidade Redis Streams</strong>
-                <p>Rastreamento de acessos, ações e moderação de comentários em tempo real.</p>
+                <strong>Comunidade e Avaliações</strong>
+                <p>Compartilhe suas notas sobre cada filme e veja as impressões da comunidade.</p>
               </div>
             </div>
           </div>
