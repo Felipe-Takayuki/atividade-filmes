@@ -1,0 +1,27 @@
+{
+  "name": "log-service",
+  "version": "1.0.0",
+  "description": "Microsserviço de Observabilidade e Logs de Auditoria com Redis Streams (ISW055 - Atividade 5)",
+  "main": "src/index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js"
+  },
+  "keywords": [
+    "redis-streams",
+    "audit-logs",
+    "observability",
+    "microservices",
+    "express"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^5.2.1",
+    "ioredis": "^5.4.2",
+    "morgan": "^1.10.0"
+  }
+}
