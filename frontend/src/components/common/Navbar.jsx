@@ -1,12 +1,26 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { AdminPromoteModal } from './AdminPromoteModal';
 import { AuditLogsModal } from './AuditLogsModal';
+import { ProfileModal } from '../profile/ProfileModal';
 
-export function Navbar() {
+export function Navbar({ onSelectMovie = null }) {
   const { user, isAuthenticated, logout } = useAuth();
   const [showPromoteModal, setShowPromoteModal] = useState(false);
   const [showLogsModal, setShowLogsModal] = useState(false);
+  const [showProfileModal, setShowProfileModal] = useState(false);
+  const [targetUserId, setTargetUserId] = useState(null);
+
+  // Permite que outros componentes (ex: comentários) abram o perfil de um usuário via evento customizado
+  useEffect(() => {
+    const handleOpenProfileEvent = (e) => {
+      setTargetUserId(e.detail?.userId || null);
+      setShowProfileModal(true);
+    };
+
+    window.addEventListener('app:open-profile', handleOpenProfileEvent);
+    return () => window.removeEventListener('app:open-profile', handleOpenProfileEvent);
+  }, []);
 
   return (
     <>
@@ -34,13 +48,29 @@ export function Navbar() {
           {/* User Menu (Exibido quando autenticado) */}
           {isAuthenticated && user && (
             <div id="user-nav" className="user-nav">
-              <div className="user-badge">
-                <span className="avatar-icon">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-                    <circle cx="12" cy="7" r="4" />
-                  </svg>
-                </span>
+              {/* Badge do Usuário com Foto de Perfil (MinIO) ou Ícone Fallback */}
+              <div
+                className="user-badge clickable-user-badge"
+                title="Clique para abrir seu perfil"
+                onClick={() => {
+                  setTargetUserId(null);
+                  setShowProfileModal(true);
+                }}
+              >
+                {user.foto_url ? (
+                  <img
+                    src={user.foto_url}
+                    alt={user.nome}
+                    className="nav-avatar-img"
+                  />
+                ) : (
+                  <span className="avatar-icon">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                      <circle cx="12" cy="7" r="4" />
+                    </svg>
+                  </span>
+                )}
                 <span id="nav-user-name" className="user-name">
                   {user.nome || 'Usuário'}
                 </span>
@@ -60,6 +90,23 @@ export function Navbar() {
                   )}
                 </span>
               </div>
+
+              {/* Botão Meu Perfil */}
+              <button
+                id="btn-open-profile"
+                className="btn btn-ghost btn-sm"
+                title="Meu Perfil e Filmes Favoritos"
+                onClick={() => {
+                  setTargetUserId(null);
+                  setShowProfileModal(true);
+                }}
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                  <circle cx="12" cy="7" r="4" />
+                </svg>
+                <span>Meu Perfil</span>
+              </button>
 
               {/* Botões exclusivos de Administrador */}
               {user.role === 'admin' && (
@@ -116,6 +163,14 @@ export function Navbar() {
           )}
         </div>
       </header>
+
+      {/* Modal de Perfil de Usuário (Upload MinIO e Favoritos) */}
+      <ProfileModal
+        isOpen={showProfileModal}
+        onClose={() => setShowProfileModal(false)}
+        targetUserId={targetUserId}
+        onMovieSelect={onSelectMovie}
+      />
 
       {/* Modal de Promoção de Usuário para Admin */}
       <AdminPromoteModal

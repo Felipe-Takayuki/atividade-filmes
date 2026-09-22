@@ -75,8 +75,10 @@ export function AuthProvider({ children }) {
 
         if (savedToken && savedUser) {
           try {
-            const res = await api.me();
-            setUser(res.user);
+            const res = await api.getProfile().catch(() => api.me());
+            const userData = res.user || res;
+            setUser(userData);
+            api.setUser(userData);
             setToken(savedToken);
           } catch {
             api.clearSession();
@@ -160,6 +162,29 @@ export function AuthProvider({ children }) {
     setAuthTab('login');
   };
 
+  const updateUserData = useCallback((updatedFields) => {
+    setUser((prev) => {
+      const merged = { ...prev, ...updatedFields };
+      api.setUser(merged);
+      return merged;
+    });
+  }, []);
+
+  const refreshUser = useCallback(async () => {
+    try {
+      const res = await api.getProfile();
+      if (res?.user) {
+        setUser((prev) => {
+          const merged = { ...prev, ...res.user };
+          api.setUser(merged);
+          return merged;
+        });
+      }
+    } catch (err) {
+      console.warn('[AuthContext] Falha ao recarregar dados do perfil:', err);
+    }
+  }, []);
+
   return (
     <AuthContext.Provider
       value={{
@@ -179,7 +204,9 @@ export function AuthProvider({ children }) {
         logout,
         forgotPassword,
         resetPassword,
-        cancelReset
+        cancelReset,
+        updateUserData,
+        refreshUser
       }}
     >
       {children}

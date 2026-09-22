@@ -250,13 +250,33 @@ export function CommentsModal({ movie, onClose, onCommentsCountChange }) {
                       <div key={comment.id} className="comment-item">
                         <div className="comment-item-content">
                           <div className="comment-author-header">
-                            <span className="comment-author-name">
-                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-                                <circle cx="12" cy="7" r="4" />
-                              </svg>
-                              <span>{comment.usuario_nome || 'Usuário'}</span>
-                            </span>
+                            <button
+                              type="button"
+                              className="comment-author-btn"
+                              title={`Ver perfil de ${comment.usuario_nome || 'Usuário'}`}
+                              onClick={() => {
+                                window.dispatchEvent(
+                                  new CustomEvent('app:open-profile', {
+                                    detail: { userId: comment.usuario_id }
+                                  })
+                                );
+                              }}
+                            >
+                              {comment.foto_url ? (
+                                <img
+                                  src={comment.foto_url}
+                                  alt={comment.usuario_nome}
+                                  className="comment-avatar-img"
+                                />
+                              ) : (
+                                <span className="comment-avatar-fallback">
+                                  {(comment.usuario_nome || 'U').charAt(0).toUpperCase()}
+                                </span>
+                              )}
+                              <span className="comment-author-name-text">
+                                {comment.usuario_nome || 'Usuário'}
+                              </span>
+                            </button>
 
                             {isAuthor && (
                               <span className="comment-author-tag">

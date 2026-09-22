@@ -43,9 +43,13 @@ export const api = {
   async request(endpoint, options = {}) {
     const token = this.getToken();
     const headers = {
-      'Content-Type': 'application/json',
       ...(options.headers || {})
     };
+
+    // Define Content-Type JSON apenas se não for FormData e não tiver header customizado
+    if (!(options.body instanceof FormData) && !headers['Content-Type']) {
+      headers['Content-Type'] = 'application/json';
+    }
 
     if (token) {
       headers['Authorization'] = `Bearer ${token}`;
@@ -213,5 +217,36 @@ export const api = {
 
     const query = params.toString() ? `?${params.toString()}` : '';
     return this.request(`/logs${query}`);
+  },
+
+  // ===== PERFIL E UPLOAD DE FOTOS (ATIVIDADE 6 - MINIO OBJECT STORAGE) =====
+  async getProfile(userId = null) {
+    const endpoint = userId ? `/profile/${userId}` : '/profile';
+    return this.request(endpoint);
+  },
+
+  async updateProfile(data, targetId = null) {
+    const endpoint = targetId ? `/profile/${targetId}` : '/profile';
+    return this.request(endpoint, {
+      method: 'PUT',
+      body: JSON.stringify(data)
+    });
+  },
+
+  async uploadProfilePhoto(file, targetId = null) {
+    const formData = new FormData();
+    formData.append('foto', file);
+    const endpoint = targetId ? `/profile/${targetId}/upload-photo` : '/profile/upload-photo';
+    return this.request(endpoint, {
+      method: 'POST',
+      body: formData
+    });
+  },
+
+  async deleteProfilePhoto(targetId = null) {
+    const endpoint = targetId ? `/profile/${targetId}/photo` : '/profile/photo';
+    return this.request(endpoint, {
+      method: 'DELETE'
+    });
   }
 };
