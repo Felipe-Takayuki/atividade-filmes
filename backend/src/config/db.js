@@ -55,6 +55,36 @@ export async function initDatabase(retries = 5, delayMs = 3000) {
         console.warn('[Catálogo-DB] Verificação da coluna role:', colErr.message);
       }
 
+      // Garante que a coluna 'bio' existe (Atividade 6 - Perfil do Usuário)
+      try {
+        const [columns] = await connection.query(`
+          SHOW COLUMNS FROM usuarios LIKE 'bio';
+        `);
+        if (columns.length === 0) {
+          console.log('[Catálogo-DB] Adicionando coluna "bio" na tabela usuarios...');
+          await connection.query(`
+            ALTER TABLE usuarios ADD COLUMN bio TEXT NULL AFTER role;
+          `);
+        }
+      } catch (bioErr) {
+        console.warn('[Catálogo-DB] Verificação da coluna bio:', bioErr.message);
+      }
+
+      // Garante que a coluna 'foto_key' existe (Atividade 6 - Upload de Foto no Object Storage)
+      try {
+        const [columns] = await connection.query(`
+          SHOW COLUMNS FROM usuarios LIKE 'foto_key';
+        `);
+        if (columns.length === 0) {
+          console.log('[Catálogo-DB] Adicionando coluna "foto_key" na tabela usuarios...');
+          await connection.query(`
+            ALTER TABLE usuarios ADD COLUMN foto_key VARCHAR(255) NULL AFTER bio;
+          `);
+        }
+      } catch (fotoErr) {
+        console.warn('[Catálogo-DB] Verificação da coluna foto_key:', fotoErr.message);
+      }
+
       // Tabela de Favoritos
       await connection.query(`
         CREATE TABLE IF NOT EXISTS favoritos (

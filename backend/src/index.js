@@ -8,11 +8,13 @@ import fs from 'fs';
 import { fileURLToPath } from 'url';
 
 import { initDatabase, pool } from './config/db.js';
+import { initMinio, MINIO_BUCKET, AVATAR_STORAGE_MODE, MINIO_PUBLIC_URL } from './config/minio.js';
 import authRoutes from './routes/authRoutes.js';
 import movieRoutes from './routes/movieRoutes.js';
 import favoriteRoutes from './routes/favoriteRoutes.js';
 import commentRoutes from './routes/commentRoutes.js';
 import logRoutes from './routes/logRoutes.js';
+import profileRoutes from './routes/profileRoutes.js';
 import { deleteComment } from './controllers/commentController.js';
 import { authenticate } from './middleware/auth.js';
 
@@ -97,6 +99,11 @@ app.get('/api/health', async (req, res) => {
       url: LOG_SERVICE_URL,
       status: logServiceStatus
     },
+    minio: {
+      bucket: MINIO_BUCKET,
+      mode: AVATAR_STORAGE_MODE,
+      public_url: MINIO_PUBLIC_URL
+    },
     tmdb_configured: tmdbKeyConfigured
   });
 });
@@ -108,6 +115,7 @@ app.use('/api/movies/:tmdb_movie_id/comments', commentRoutes);
 app.delete('/api/comments/:id', authenticate, deleteComment);
 app.use('/api/favorites', favoriteRoutes);
 app.use('/api/logs', logRoutes);
+app.use('/api/profile', profileRoutes); // Atividade 6: Upload e Perfil de Usuário
 
 // Rota fallback para SPA (Single Page Application)
 app.use((req, res, next) => {
@@ -125,7 +133,7 @@ app.use((err, req, res, next) => {
   });
 });
 
-// Inicialização do servidor e banco de dados
+// Inicialização do servidor, banco de dados e object storage
 async function startServer() {
   console.log('==============================================');
   console.log('🎬 Catálogo de Filmes Tom Hanks - Servidor Principal');
@@ -133,8 +141,11 @@ async function startServer() {
   console.log(`🔗 Conectado ao Serviço de Troca de Senha (auth-service) em: ${AUTH_SERVICE_URL}`);
   console.log(`📋 Conectado ao Serviço de Logs e Auditoria (log-service) em: ${LOG_SERVICE_URL}`);
 
-  // Inicializa tabelas
+  // 1. Inicializa tabelas do banco de dados (MariaDB)
   await initDatabase();
+
+  // 2. Inicializa Object Storage (MinIO) para uploads de fotos de perfil
+  await initMinio();
 
   app.listen(PORT, '0.0.0.0', () => {
     console.log(`🚀 Servidor do Catálogo rodando na porta ${PORT}`);

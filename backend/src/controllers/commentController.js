@@ -1,6 +1,7 @@
 import { pool } from '../config/db.js';
 import { callAuthService } from './authController.js';
 import { sendLogEvent, getClientIp } from '../services/logClient.js';
+import { buildAvatarUrl } from '../config/minio.js';
 
 /**
  * Lista TODOS os comentários de um filme específico feitos por TODOS os usuários.
@@ -14,10 +15,10 @@ export async function listMovieComments(req, res) {
       return res.status(400).json({ error: 'tmdb_movie_id inválido.' });
     }
 
-    // Permite que todos os usuários vejam todos os comentários de todos os usuários
+    // Permite que todos os usuários vejam todos os comentários de todos os usuários com foto de perfil
     const [rows] = await pool.query(
       `SELECT c.id, c.usuario_id, c.tmdb_movie_id, c.texto, c.criado_em,
-              u.nome as usuario_nome, u.role as usuario_role
+              u.nome as usuario_nome, u.role as usuario_role, u.bio as usuario_bio, u.foto_key
        FROM comentarios c
        JOIN usuarios u ON c.usuario_id = u.id
        WHERE c.tmdb_movie_id = ?
@@ -25,10 +26,17 @@ export async function listMovieComments(req, res) {
       [movieId]
     );
 
+    const formattedComments = await Promise.all(
+      rows.map(async (c) => ({
+        ...c,
+        foto_url: await buildAvatarUrl(c.foto_key, req)
+      }))
+    );
+
     return res.json({
       success: true,
-      total: rows.length,
-      comments: rows
+      total: formattedComments.length,
+      comments: formattedComments
     });
   } catch (err) {
     console.error('[Comments] Erro ao listar comentários:', err);
