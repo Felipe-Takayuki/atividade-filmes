@@ -1,17 +1,18 @@
 version: '3.8'
 
 # ==============================================================================
-# ISW055 - Atividade 5: Observabilidade - Logs e Auditoria (Redis Streams)
-# Arquitetura: 4 serviços desacoplados em rede interna isolada (app-network)
+# ISW055 - Atividade 6: Armazenamento de Objetos - Upload e Perfil de Usuário
+# Professor: Allan Siriani (github.com/siriani)
+# Arquitetura: 5 serviços desacoplados em rede interna isolada (app-network)
 # - catalogo: Ponto ÚNICO de entrada público (:3000) com Frontend e Backend
 # - auth-service: Microsserviço de autenticação e RBAC (:4000 interno)
 # - log-service: Microsserviço de observabilidade e auditoria (:5000 interno)
-# - redis: Banco NoSQL chave-valor em memória com persistência AOF (:6379 interno)
+# - redis: Banco NoSQL para Redis Streams de auditoria (:6379 interno)
+# - minio: Object Storage S3 compatível para fotos de perfil (:9000 / :9001)
 # ==============================================================================
 
 services:
-  # 1. Container do Catálogo (Frontend SPA + Backend TMDB/Favoritos/Comentários/Auditoria)
-  # ÚNICO serviço com porta pública publicada no host
+  # 1. Container do Catálogo (Frontend SPA + Backend TMDB/Favoritos/Comentários/Perfil/Storage)
   catalogo:
     build:
       context: .
@@ -29,9 +30,19 @@ services:
       - DB_NAME=${DB_NAME:-catalogo_filmes}
       - TMDB_API_KEY=${TMDB_API_KEY}
       - JWT_SECRET=${JWT_SECRET:-chave_jwt_secreta_local_dev}
+      # Configurações do MinIO Object Storage (Atividade 6)
+      - MINIO_ENDPOINT=${MINIO_ENDPOINT:-minio}
+      - MINIO_PORT=${MINIO_PORT:-9000}
+      - MINIO_USE_SSL=${MINIO_USE_SSL:-false}
+      - MINIO_ROOT_USER=${MINIO_ROOT_USER:-minioadmin}
+      - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD:-minioadmin}
+      - MINIO_BUCKET=${MINIO_BUCKET:-catalogo-perfil}
+      - MINIO_PUBLIC_URL=${MINIO_PUBLIC_URL:-http://localhost:9000}
+      - AVATAR_STORAGE_MODE=${AVATAR_STORAGE_MODE:-public}
     depends_on:
       - auth-service
       - log-service
+      - minio
     networks:
       - app-network
     restart: unless-stopped
@@ -101,8 +112,27 @@ services:
       - app-network
     restart: unless-stopped
 
+  # 5. MinIO - Object Storage para Uploads de Foto de Perfil (Atividade 6)
+  # Armazena binários das fotos de usuários separadamente do MariaDB
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
+    ports:
+      - "${MINIO_PORT:-9000}:9000"          # API S3 para leitura pública e SDK
+      - "${MINIO_CONSOLE_PORT:-9001}:9001"  # Console Web do MinIO para gerenciamento
+    environment:
+      - MINIO_ROOT_USER=${MINIO_ROOT_USER:-minioadmin}
+      - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD:-minioadmin}
+    volumes:
+      - minio-data:/data
+    networks:
+      - app-network
+    restart: unless-stopped
+
 volumes:
   redis-data:
+    driver: local
+  minio-data:
     driver: local
 
 networks:
