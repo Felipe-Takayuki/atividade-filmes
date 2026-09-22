@@ -153,7 +153,7 @@ services:
 
   # 5. MinIO - Object Storage para Fotos de Perfil (Atividade 6)
   minio:
-    image: minio/minio:latest
+    image: quay.io/minio/minio:latest
     command: server /data --console-address ":9001"
     ports:
       - "${MINIO_PORT:-9000}:9000"          # API S3 pública para leitura das fotos

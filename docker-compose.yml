@@ -115,7 +115,7 @@ services:
   # 5. MinIO - Object Storage para Uploads de Foto de Perfil (Atividade 6)
   # Armazena binários das fotos de usuários separadamente do MariaDB
   minio:
-    image: minio/minio:latest
+    image: quay.io/minio/minio:latest
     command: server /data --console-address ":9001"
     ports:
       - "${MINIO_PORT:-9000}:9000"          # API S3 para leitura pública e SDK
