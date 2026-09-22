@@ -1,69 +1,73 @@
-# 🎬 Catálogo de Filmes — Tom Hanks (Microsserviços, RBAC & Logs de Auditoria)
+# 🎬 Catálogo de Filmes — Tom Hanks (Microsserviços, RBAC, Logs de Auditoria & Object Storage MinIO)
 
-> Atividades Práticas 3, 4 e 5 da disciplina **ISW055 - Introdução à Computação em Nuvem**  
+> Atividades Práticas 3, 4, 5 e 6 da disciplina **ISW055 - Introdução à Computação em Nuvem**  
 > Professor: **Allan Siriani** ([@siriani](https://github.com/siriani))
 
 ---
 
 ## 📌 Visão Geral da Arquitetura
 
-O sistema implementa uma **arquitetura de microsserviços desacoplados e distribuídos** para exibição de filmes, autenticação segura com RBAC e observabilidade centralizada com Redis Streams:
+O sistema implementa uma **arquitetura de microsserviços desacoplados e distribuídos** para exibição de filmes, autenticação segura com RBAC, observabilidade centralizada com Redis Streams e **armazenamento de objetos com MinIO (S3)**:
 
-1. **`catalogo`**: Ponto único de entrada público da aplicação (porta 3000), hospedando a SPA em React 19 e o backend Express que orquestra as regras de negócio de filmes, favoritos e moderação de comentários.
+1. **`catalogo`**: Ponto único de entrada público da aplicação (porta 3000), hospedando a SPA em React 19 e o backend Express que orquestra as regras de negócio de filmes, favoritos, perfil com fotos e moderação de comentários.
 2. **`auth-service`**: Microsserviço de autenticação, cadastro, papéis de usuário (`role`), tokens JWT e redefinição de senhas com envio de e-mail transacional (porta 4000 interna).
 3. **`log-service`**: Microsserviço dedicado de observabilidade e auditoria (porta 5000 interna), responsável por receber eventos de todos os serviços e gravá-los no Redis Streams via `XADD`.
 4. **`redis`**: Banco NoSQL em memória com persistência AOF (porta 6379 interna), armazenando a stream cronológica `audit:events`.
-5. **`mariadb`**: Banco de dados relacional para persistência de dados de negócio (usuários, favoritos, comentários e tokens de redefinição).
+5. **`minio`**: Object Storage compatível com AWS S3 (porta 9000 API / 9001 Console), armazenando arquivos binários de fotos de perfil em bucket dedicado (`catalogo-perfil`).
+6. **`mariadb`**: Banco de dados relacional para persistência de dados estruturados de negócio (usuários com bio e foto_key, favoritos, comentários e tokens de redefinição).
 
 ```
-               ┌─────────────────────────────────────────────────────────────────────────┐
-               │                    Rede Docker Interna (app-network)                    │
-               │                                                                         │
-┌─────────────┐│   ┌───────────────────────┐         ┌───────────────────────────────┐   │
-│  Navegador  ││   │  Catálogo + Backend   │  HTTP   │         auth-service          │   │
-│ (Usuário /  │┼──>│ (Ponto Único Público) │────────>│    (Auth, Roles, Senha)       │   │
-│   Admin)    ││   │     Porta :3000       │         │    (SEM PORTA NO HOST)        │   │
-└─────────────┘│   └───────────┬───────────┘         │         Porta :4000           │   │
-               │               │                     └───────────────┬───────────────┘   │
-               │               │ Eventos                             │ Eventos           │
-               │               │ (favoritos, comentários, 403)       │ (login, 403)      │
-               │               ▼                                     ▼                   │
-               │   ┌─────────────────────────────────────────────────────────────┐       │
-               │   │             log-service (Audit & Observability)             │       │
-               │   │              Porta :5000 (SEM PORTA NO HOST)                │       │
-               │   └──────────────────────────────┬──────────────────────────────┘       │
-               │                                  │ XADD / XREVRANGE                     │
-               │                                  ▼                                      │
-               │   ┌─────────────────────────────────────────────────────────────┐       │
-               │   │               Redis Streams (audit:events)                  │       │
-               │   │             Porta :6379 (SEM PORTA NO HOST)                 │       │
-               │   └─────────────────────────────────────────────────────────────┘       │
-               └───────────────┼─────────────────────────────────────┼───────────────────┘
-                               │                                     │
-                               ▼                                     ▼
-                     ┌───────────────────────────────────────────────────┐
-                     │                      MariaDB                      │
-                     │    (usuarios, reset_tokens, favoritos, coment.)   │
-                     └───────────────────────────────────────────────────┘
+               ┌────────────────────────────────────────────────────────────────────────────────────────┐
+               │                           Rede Docker Interna (app-network)                            │
+               │                                                                                        │
+┌─────────────┐│   ┌───────────────────────┐         ┌───────────────────────────────┐                  │
+│  Navegador  ││   │  Catálogo + Backend   │  HTTP   │         auth-service          │                  │
+│ (Usuário /  │┼──>│ (Ponto Único Público) │────────>│    (Auth, Roles, Senha)       │                  │
+│   Admin)    ││   │     Porta :3000       │         │    (SEM PORTA NO HOST)        │                  │
+└──────┬──────┘│   └───┬───────────────┬───┘         │         Porta :4000           │                  │
+       │       │       │               │             └───────────────┬───────────────┘                  │
+       │       │       │ Eventos       │ Upload Binário              │ Eventos                          │
+       │       │       │ (audit)       │ S3 PutObject                │ (login, 403)                     │
+       │       │       ▼               ▼                             ▼                                  │
+       │       │   ┌───────────────┐ ┌───────────────────────────┐ ┌──────────────────────────────┐    │
+       │       │   │  log-service  │ │     MinIO Object Storage  │ │  Redis Streams (audit:events)│    │
+       │       │   │  Porta :5000  │ │  Bucket: catalogo-perfil  │ │  Porta :6379                 │    │
+       │       │   └───────┬───────┘ │  Porta :9000 / :9001      │ └──────────────────────────────┘    │
+       │       │           │ XADD    └─────────────┬─────────────┘                                      │
+       │       │           ▼                       │ Leitura Pública de Imagens                         │
+       └───────┼───────────────────────────────────┼────────────────────────────────────────────────────┘
+               │                                   │ (URL do Avatar montada sob demanda)
+               │                                   ▼
+               │                         ┌───────────────────┐
+               │                         │    Navegador      │
+               │                         │ (Exibição Foto)   │
+               │                         └───────────────────┘
+               │
+               │ Referência (foto_key, bio, favoritos, comentarios)
+               ▼
+     ┌───────────────────────────────────────────────────────────────────────┐
+     │                                MariaDB                                │
+     │       (usuarios [bio, foto_key], reset_tokens, favoritos, coment.)    │
+     └───────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 🐳 Docker Compose: 4 Serviços e Rede Isolada
+## 🐳 Docker Compose: 5 Serviços e Rede Isolada
 
-O arquivo [`docker-compose.yml`](docker-compose.yml) orquestra os **4 serviços desacoplados** conectados através da rede compartilhada `app-network`:
+O arquivo [`docker-compose.yml`](docker-compose.yml) orquestra os **5 serviços desacoplados** conectados através da rede compartilhada `app-network`:
 
 ```yaml
 version: '3.8'
 
 services:
-  # 1. Container do Catálogo (Frontend SPA + Backend TMDB/Favoritos/Comentários/Auditoria)
+  # 1. Container do Catálogo (Frontend SPA + Backend TMDB/Favoritos/Comentários/Perfil/Storage)
   catalogo:
     build:
       context: .
       dockerfile: Dockerfile
     ports:
-      - "${PORT:-3000}:3000" # Único serviço com porta pública
+      - "${PORT:-3000}:3000" # Único serviço com porta web de aplicação pública
     environment:
       - PORT=3000
       - AUTH_SERVICE_URL=http://auth-service:4000
@@ -75,14 +79,24 @@ services:
       - DB_NAME=${DB_NAME:-catalogo_filmes}
       - TMDB_API_KEY=${TMDB_API_KEY}
       - JWT_SECRET=${JWT_SECRET:-chave_jwt_secreta_local_dev}
+      - MINIO_ENDPOINT=${MINIO_ENDPOINT:-minio}
+      - MINIO_PORT=${MINIO_PORT:-9000}
+      - MINIO_USE_SSL=${MINIO_USE_SSL:-false}
+      - MINIO_ROOT_USER=${MINIO_ROOT_USER:-minioadmin}
+      - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD:-minioadmin}
+      - MINIO_BUCKET=${MINIO_BUCKET:-catalogo-perfil}
+      - MINIO_PUBLIC_URL=${MINIO_PUBLIC_URL:-http://localhost:9000}
+      - AVATAR_STORAGE_MODE=${AVATAR_STORAGE_MODE:-public}
     depends_on:
       - auth-service
       - log-service
+      - minio
     networks:
       - app-network
     restart: unless-stopped
 
   # 2. Microsserviço de Autenticação (Login, Cadastro, RBAC, Tokens e Troca de Senha)
+  # ATENÇÃO: Sem 'ports' publicado pro host - acessível APENAS via rede Docker interna
   auth-service:
     build:
       context: ./auth-service
@@ -106,6 +120,7 @@ services:
     restart: unless-stopped
 
   # 3. Microsserviço de Observabilidade e Logs de Auditoria (Atividade 5)
+  # ATENÇÃO: Sem 'ports' publicado pro host - acessível APENAS internamente
   log-service:
     build:
       context: ./log-service
@@ -124,6 +139,7 @@ services:
     restart: unless-stopped
 
   # 4. Redis para Streams de Auditoria (Append-Only File habilitado)
+  # ATENÇÃO: Sem porta no host - acessível APENAS na rede interna do Docker
   redis:
     image: redis:7-alpine
     command: redis-server --appendonly yes
@@ -135,8 +151,26 @@ services:
       - app-network
     restart: unless-stopped
 
+  # 5. MinIO - Object Storage para Fotos de Perfil (Atividade 6)
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
+    ports:
+      - "${MINIO_PORT:-9000}:9000"          # API S3 pública para leitura das fotos
+      - "${MINIO_CONSOLE_PORT:-9001}:9001"  # Painel de controle Web MinIO
+    environment:
+      - MINIO_ROOT_USER=${MINIO_ROOT_USER:-minioadmin}
+      - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD:-minioadmin}
+    volumes:
+      - minio-data:/data
+    networks:
+      - app-network
+    restart: unless-stopped
+
 volumes:
   redis-data:
+    driver: local
+  minio-data:
     driver: local
 
 networks:
@@ -146,14 +180,14 @@ networks:
 
 ---
 
-## 🔒 Confirmação de Isolamento: Microsserviços Sem Porta no Host
+## 🔒 Confirmação de Isolamento e Segurança da Rede
 
 > [!IMPORTANT]
 > **Confirmação de Segurança e Desacoplamento:**
 > - Os containers **`auth-service`**, **`log-service`** e **`redis` NÃO possuem a diretiva `ports:` configurada**.
 > - Eles utilizam exclusivamente **`expose`**, o que significa que suas portas internas (**4000**, **5000** e **6379**) **NÃO são publicadas/mapeadas para a máquina host nem para a internet**.
-> - O acesso ocorre **estritamente de forma interna** via DNS interno do Docker na rede `app-network`.
-> - O único container com porta aberta para o host é o **`catalogo`** (`ports: - "${PORT:-3000}:3000"`), garantindo que todo o tráfego externo passe pelo ponto de entrada controlado.
+> - O container **`minio`** publica a porta **9000** (para download direto e leitura pública de fotos no Object Storage conforme o Requisito 3) e **9001** (Console Web administrativo).
+> - O ponto de entrada principal da aplicação web continua sendo estritamente o **`catalogo`** (`ports: - "${PORT:-3000}:3000"`).
 
 ### 📋 Tabela Comparativa de Exposição de Portas
 
@@ -163,6 +197,7 @@ networks:
 | **`auth-service`** | `4000` | **NÃO** (apenas `expose: 4000`) | **NÃO** (Bloqueada pro host) | Interna via `app-network` (`http://auth-service:4000`) |
 | **`log-service`** | `5000` | **NÃO** (apenas `expose: 5000`) | **NÃO** (Bloqueada pro host) | Interna via `app-network` (`http://log-service:5000`) |
 | **`redis`** | `6379` | **NÃO** (apenas `expose: 6379`) | **NÃO** (Bloqueada pro host) | Interna via `app-network` (`redis:6379`) |
+| **`minio`** | `9000`, `9001` | **Sim** (`9000:9000`, `9001:9001`) | **Sim** (S3 API e Console) | Leitura pública de fotos / Admin Console |
 
 ---
 
@@ -214,7 +249,7 @@ Requisição de Troca ──> 1. Token existe no banco? ──Não──> ❌ Er
 
 ## 🗄️ Modelo do Banco de Dados
 
-### 1. Tabela `usuarios` (Autenticação e Perfis)
+### 1. Tabela `usuarios` (Autenticação, Perfis e Referência ao MinIO)
 ```sql
 CREATE TABLE IF NOT EXISTS usuarios (
   id INT AUTO_INCREMENT PRIMARY KEY,
@@ -222,6 +257,8 @@ CREATE TABLE IF NOT EXISTS usuarios (
   email VARCHAR(150) UNIQUE NOT NULL,
   senha_hash VARCHAR(255) NOT NULL,
   role VARCHAR(50) NOT NULL DEFAULT 'usuario', -- Papéis: 'usuario' ou 'admin'
+  bio TEXT NULL,                               -- Bio curta do perfil (Atividade 6)
+  foto_key VARCHAR(255) NULL,                  -- Chave do objeto no MinIO (Atividade 6)
   criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 ```
@@ -808,5 +845,264 @@ curl -X GET http://localhost:3000/api/logs?limit=10 \
 
 Todos os eventos aparecem preservando a **ordem cronológica perfeita**, comprovando a eficácia dos **Redis Streams** e o isolamento dos microsserviços.
 
+---
 
+## ☁️ Atividade 6 — Armazenamento de Objetos: Upload e Perfil de Usuário (MinIO)
 
+> Atividade Prática 6 da disciplina **ISW055 - Introdução à Computação em Nuvem**  
+> Professor: **Allan Siriani** ([@siriani](https://github.com/siriani))  
+> **Tema:** Armazenamento de Objetos — O catálogo vira uma rede social.
+
+---
+
+### 🧠 Conceito: Por que a Imagem Não Mora no Banco de Dados
+
+Até a atividade anterior, todo o sistema persistia exclusivamente dados textuais estruturados (usuários, senhas com hash, favoritos, comentários e logs). Na Atividade 6, introduz-se um tipo fundamentalmente distinto de dado: **arquivos binários (imagens de fotos de perfil)**.
+
+#### 1. O Problema das Colunas BLOB no Banco Relacional
+Seria tecnicamente viável armazenar bytes de imagem dentro de uma coluna do MariaDB (tipo `BLOB` ou `LONGBLOB`), mas isso é amplamente evitado em sistemas modernos de produção:
+- **Sobrecarga de I/O e Buffer Pool:** Bancos relacionais são otimizados para linhas pequenas, índices B-Tree e consultas estruturadas com alta concorrência. Gravar arquivos de vários megabytes satura a memória de buffer pool.
+- **Inflação do Banco e Lentidão em Backups:** Backups lógicos (`mysqldump`) e físicos tornam-se ordens de grandeza maiores, mais demorados para gerar e extremamente lentos para restaurar em caso de desastre (*Disaster Recovery*).
+- **Escala Prejudicada:** O tráfego de leitura de arquivos multimídia concorre diretamente com as transações ACID do banco de dados relacional.
+
+#### 2. A Solução da Indústria: Object Storage Dedicado (MinIO S3)
+A arquitetura implementada desacopla o armazenamento binário em dois fluxos complementares:
+- **O arquivo binário** vai direto para o **MinIO** (um Object Storage dedicado compatível com a API AWS S3).
+- **O MariaDB guarda apenas uma referência leve** — a chave do objeto (`foto_key`, ex: `avatars/user-1-1725988000.png`) e os metadados do perfil (`nome`, `bio`).
+- **Exibir o perfil depois** é consultar a referência no banco e **montar a URL sob demanda na hora de exibir** — nunca transferir arquivos binários pesados pelo MariaDB.
+
+```
+                         ┌─────────────────────────────────────────────────────────────┐
+                         │                    Ação de Upload de Foto                   │
+                         └──────────────────────────────┬──────────────────────────────┘
+                                                        │
+                                                        ▼
+                                       ┌──────────────────────────────────┐
+                                       │        Catálogo (Backend)        │
+                                       │    Valida Tipo MIME e Tamanho    │
+                                       └────────┬─────────────────┬───────┘
+                                                │                 │
+                           1. Salva arquivo     │                 │ 2. Salva apenas a
+                              binário no S3     │                 │    chave de referência
+                                                ▼                 ▼
+                                    ┌──────────────────────┐   ┌──────────────────────┐
+                                    │ MinIO Object Storage │   │       MariaDB        │
+                                    │ (Bucket Dedicado:    │   │  (Tabela: usuarios   │
+                                    │  catalogo-perfil)    │   │   foto_key, bio)     │
+                                    └──────────────────────┘   └──────────────────────┘
+                                                ▲                         │
+                                                │                         │ 3. Lê referência
+                                                │ 4. Monta a URL pública  ▼
+                                                │    para renderização ┌──────────────────────┐
+                                                └──────────────────────┤   Página de Perfil   │
+                                                                       │ (Frontend React 19)  │
+                                                                       └──────────────────────┘
+```
+
+---
+
+### 📋 Requisitos Implementados
+
+#### 1. Requisito 1 — Página de Perfil (Rede Social do Catálogo)
+Cada usuário ganha uma página completa de perfil:
+- **Foto de Perfil:** Exibida em formato circular com suporte a preview em tempo real, borda dourada destacada e carregamento direto do MinIO.
+- **Nome de Exibição:** Editável pelo proprietário da conta.
+- **Bio Curta:** Campo de texto de até 500 caracteres com contador dinâmico em tempo real (`X / 500 caracteres`), permitindo aos usuários compartilharem seus gostos e preferências cinematográficas.
+- **Lista de Filmes Favoritados:** Grade completa com os pôsteres oficiais, títulos e notas dos filmes salvos pelo usuário (reaproveitando a persistência da Atividade 2).
+- **Badge de Papel (RBAC):** Identificação visual clara do perfil (`👑 Admin` ou `👤 Usuário`).
+- **Data de Ingresso:** Registro de membro desde quando a conta foi criada.
+- **Comunidade & Perfis Públicos:** Ao clicar no nome ou avatar de qualquer autor na seção de comentários de um filme, o modal de perfil abre em **modo público somente-leitura**, ocultando o e-mail por privacidade e exibindo os filmes favoritos daquele usuário.
+
+---
+
+#### 2. Requisito 2 — Upload de Foto de Perfil & Validações
+O upload é tratado via middleware [`uploadPhotoMiddleware`](backend/src/middleware/upload.js) com Multer em memória:
+- **Bucket Dedicado:** Criado e configurado automaticamente na inicialização com o nome `catalogo-perfil`.
+- **Validação de Tipo de Arquivo (Só Imagens):**
+  - Tipos MIME aceitos: `image/jpeg`, `image/png`, `image/webp`, `image/gif`.
+  - Rejeição imediata de arquivos inválidos (PDFs, scripts, executáveis) com **`HTTP 400 Bad Request`** e código `INVALID_FILE_TYPE`.
+- **Validação de Tamanho Máximo:**
+  - Limite estrito de **5 MB**. Payloads que excedem o limite são rejeitados com **`HTTP 400 Bad Request`** e código `FILE_TOO_LARGE`.
+- **Chave Única Anti-Colisão & Prevenção de Path Traversal:**
+  - O arquivo nunca é salvo com o nome fornecido pelo cliente. O backend gera um identificador seguro no formato:
+    ```
+    avatars/user-<userId>-<timestamp>-<randomBytes>.<ext>
+    ```
+- **Limpeza Automática de Arquivos Órfãos:**
+  - Ao substituir uma foto ou remover o avatar atual (`DELETE /api/profile/photo`), o backend remove automaticamente o arquivo binário anterior do MinIO, evitando custos desnecessários com arquivos órfãos.
+
+---
+
+#### 3. Requisito 3 — Exibição da Imagem & Análise do Trade-Off
+
+> [!IMPORTANT]
+> **Decisão de Arquitetura Documentada:**
+> A aplicação adotou como padrão o **Bucket com Leitura Pública (`Public Read Policy`)**, com suporte configurável a **URLs Pré-assinadas (`Presigned URLs`)** e rota fallback de streaming via proxy.
+
+##### Comparativo Técnico de Trade-Off: Leitura Pública vs URL Pré-assinada
+
+| Critério de Arquitetura | Opção A: Bucket com Leitura Pública *(Adotada)* | Opção B: URL Pré-assinada / Temporária |
+|---|---|---|
+| **Mecanismo de Acesso** | Política S3 `s3:GetObject` pública para o bucket `catalogo-perfil/*`. | Assinatura HMAC gerada pelo backend com tempo de expiração (TTL de 1 a 24 horas). |
+| **Cache no Navegador / CDN** | **Altamente Eficiente:** URLs estáveis e imutáveis permitem cache agressivo (`Cache-Control: public, max-age=86400, immutable`), economizando banda e requisições. | **Prejudicado:** Cada URL pré-assinada possui parâmetros de autenticação e data únicos na query string, invalidando o cache do navegador e forçando novos downloads. |
+| **Sobrecarga no Backend** | **Nula:** O backend apenas concatena a URL pública base com a chave do objeto. O MinIO serve o tráfego estático diretamente. | **Alta:** O backend precisa assinar criptograficamente cada URL individualmente a cada requisição de perfil ou comentário carregado. |
+| **Experiência do Usuário (UX)** | **Fluida:** A imagem nunca expira enquanto o usuário navega na aplicação ou mantém a aba aberta. | **Interrompida:** Se o usuário passar mais tempo na página que o TTL configurado, as imagens quebram com erro `403 Request has expired`. |
+| **Caso de Uso Recomendado** | **Redes Sociais e Perfis Públicos:** Avatares de fóruns, redes sociais e catálogos onde a foto é pública por definição. | **Arquivos Confidenciais e Privados:** Faturas financeiras, prontuários médicos, backups ou contratos jurídicos restritos. |
+
+##### Implementação Flexível no Projeto
+1. **Modo Leitura Pública (Padrão):** O backend monta a URL direta `${MINIO_PUBLIC_URL}/${MINIO_BUCKET}/${foto_key}`.
+2. **Modo Presigned URL:** Configurável definindo `AVATAR_STORAGE_MODE=presigned` no `.env`.
+3. **Endpoint Proxy de Streaming:** Rota `/api/profile/avatar/:fotoKey` que busca o stream diretamente no MinIO e envia ao cliente com cabeçalhos `Content-Type` e `Cache-Control`.
+
+---
+
+#### 4. Requisito 4 — Cada um só edita o próprio perfil (Enforcement RBAC 403)
+
+O sistema reutiliza e estende o controle de acesso por papel da Atividade 4, aplicando o princípio de **confiança zero** em relação a dados fornecidos pelo cliente:
+- O backend identifica o requisitante **exclusivamente através do token JWT validado criptograficamente** (`req.user.id`).
+- Caso um usuário malicioso envie um ID de outro usuário nos parâmetros da rota (`PUT /api/profile/:id` ou `POST /api/profile/:id/upload-photo`) ou no corpo do JSON (`{ "id": 2, "usuario_id": 2 }`), o backend **detecta a divergência e rejeita imediatamente com `HTTP 403 Forbidden`**:
+  ```json
+  {
+    "error": "Acesso proibido. Você não tem permissão para editar o perfil de outro usuário.",
+    "code": "FORBIDDEN_PROFILE_EDIT",
+    "solicitante_id": 1,
+    "alvo_id": 2
+  }
+  ```
+- **Auditoria Automática no Redis Streams (Atividade 5):** Toda tentativa de adulteração de perfil alheio é registrada imediatamente no log de auditoria com a ação `acao_negada_403`, capturando o IP de origem, IDs envolvidos e payload da tentativa.
+- **Botão Interativo de Teste no Frontend:** No modal de perfil, há o botão **`🛡️ Testar Edição em Outro Usuário (403)`**, permitindo a qualquer avaliador disparar a requisição forjada com um único clique e visualizar a confirmação visual da recusa segura.
+
+---
+
+### 📸 Demonstração Prática do Perfil e Upload
+
+Abaixo, a captura de tela demonstrando:
+1. **Foto de Perfil carregada no MinIO** com exibição instantânea e avatar renderizado.
+2. **Nome, bio curta editada e data de ingresso**.
+3. **Grade de filmes favoritados** do usuário.
+4. **Banner de validação de segurança comprovada**, evidenciando o bloqueio `HTTP 403 Forbidden` ao tentar editar perfil de terceiros:
+
+![Perfil de Usuário com Foto no MinIO e Validação de Segurança 403](docs/perfil-minio.png)
+
+---
+
+### 🧪 Roteiro de Testes e Comandos cURL
+
+#### Passo 1: Autenticação com Usuário Comum
+```bash
+curl -X POST http://localhost:3000/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email": "aluno@exemplo.com", "senha": "senha123"}'
+```
+> *(Copie o token JWT retornado no campo `token`)*
+
+#### Passo 2: Upload de Foto de Perfil para o MinIO
+Envie um arquivo de imagem (`.png` ou `.jpg`):
+```bash
+curl -X POST http://localhost:3000/api/profile/upload-photo \
+  -H "Authorization: Bearer <TOKEN_USUARIO>" \
+  -F "foto=@minha_foto.png"
+```
+**Resposta esperada (HTTP 201 Created):**
+```json
+{
+  "success": true,
+  "message": "Foto de perfil atualizada com sucesso!",
+  "foto_key": "avatars/user-2-1725988000-a1b2c3.png",
+  "foto_url": "http://localhost:9000/catalogo-perfil/avatars/user-2-1725988000-a1b2c3.png"
+}
+```
+
+#### Passo 3: Consultar Perfil e Filmes Favoritados
+```bash
+curl -X GET http://localhost:3000/api/profile \
+  -H "Authorization: Bearer <TOKEN_USUARIO>"
+```
+**Resposta esperada (HTTP 200 OK):**
+```json
+{
+  "success": true,
+  "user": {
+    "id": 2,
+    "nome": "Aluno Silva",
+    "email": "aluno@exemplo.com",
+    "bio": "Apaixonado por cinema clássico e Tom Hanks.",
+    "foto_key": "avatars/user-2-1725988000-a1b2c3.png",
+    "foto_url": "http://localhost:9000/catalogo-perfil/avatars/user-2-1725988000-a1b2c3.png",
+    "role": "usuario",
+    "is_self": true
+  },
+  "favorites": [
+    {
+      "id": 1,
+      "tmdb_movie_id": 13,
+      "titulo": "Forrest Gump",
+      "poster_url": "https://image.tmdb.org/t/p/w500/saHP97rTPS5eLmrLQEcANmKrsFl.jpg"
+    }
+  ],
+  "total_favorites": 1
+}
+```
+
+#### Passo 4: Atualizar Bio e Nome do Perfil Próprio
+```bash
+curl -X PUT http://localhost:3000/api/profile \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <TOKEN_USUARIO>" \
+  -d '{"nome": "Aluno Silva Atualizado", "bio": "Minha nova bio para a rede social do catálogo!"}'
+```
+**Resposta esperada (HTTP 200 OK):**
+```json
+{
+  "success": true,
+  "message": "Perfil atualizado com sucesso.",
+  "user": {
+    "id": 2,
+    "nome": "Aluno Silva Atualizado",
+    "bio": "Minha nova bio para a rede social do catálogo!",
+    "is_self": true
+  }
+}
+```
+
+#### Passo 5: Tentativa RECUSADA de Editar o Perfil de Outro Usuário (HTTP 403)
+Tente alterar os dados do usuário ID 1 utilizando o token do usuário ID 2:
+```bash
+curl -X PUT http://localhost:3000/api/profile/1 \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <TOKEN_DO_USUARIO_2>" \
+  -d '{"nome": "Invasor Malicioso", "bio": "Tentativa forjada de edição!"}'
+```
+**Resposta esperada do Backend (HTTP 403 Forbidden):**
+```json
+{
+  "error": "Acesso proibido. Você não tem permissão para editar o perfil de outro usuário.",
+  "code": "FORBIDDEN_PROFILE_EDIT",
+  "solicitante_id": 2,
+  "alvo_id": 1
+}
+```
+> *(A tentativa é bloqueada no servidor e gera automaticamente o log de auditoria `acao_negada_403` no Redis Streams!)*
+
+#### Passo 6: Executar a Suíte de Testes Automatizados
+O projeto inclui suíte de testes cobrindo todas as regras da Atividade 6:
+```bash
+node backend/test-profile.js
+```
+**Saída dos testes:**
+```
+🧪 Iniciando Bateria de Testes: Atividade 6 (Upload e Perfil de Usuário)...
+  ✅ [PASS] REQUISITO 4: Tentativa de editar perfil de OUTRO usuário é bloqueada com HTTP 403
+  ✅ [PASS] REQUISITO 4: Tentativa de forjar ID de outro usuário no BODY da requisição é bloqueada com HTTP 403
+  ✅ [PASS] REQUISITO 4: Tentativa de upload de foto no perfil de outro usuário é bloqueada com HTTP 403
+  ✅ [PASS] REQUISITO 4: Tentativa de remoção de foto no perfil de outro usuário é bloqueada com HTTP 403
+  ✅ [PASS] Validação: Upload sem enviar arquivo retorna HTTP 400
+  ✅ [PASS] REQUISITO 3: Construção da URL de foto no modo public
+  ✅ [PASS] REQUISITO 3: Foto nula retorna URL nula
+  ✅ [PASS] REQUISITO 1: Consulta de perfil do próprio usuário retorna e-mail e is_self = true
+  ✅ [PASS] REQUISITO 1: Consulta de perfil de OUTRO usuário oculta o e-mail por privacidade
+  ✅ [PASS] Atualização legítima do próprio perfil funciona com sucesso (HTTP 200)
+==============================================
+📊 Resultado dos Testes: 10 passaram, 0 falharam.
+==============================================
+```
