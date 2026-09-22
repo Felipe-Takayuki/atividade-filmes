@@ -12,7 +12,7 @@ import { uploadPhotoMiddleware } from '../middleware/upload.js';
 const router = Router();
 
 // Rota de fallback / proxy de streaming para visualização da foto direto do MinIO
-router.get('/avatar/:fotoKey(*)', streamAvatar);
+router.get('/avatar/*fotoKey', streamAvatar);
 
 // Consultar perfil (próprio ou de outro usuário)
 router.get('/', authenticate, getProfile);

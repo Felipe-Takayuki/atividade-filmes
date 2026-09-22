@@ -38,7 +38,7 @@ services:
       - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD:-minioadmin}
       - MINIO_BUCKET=${MINIO_BUCKET:-catalogo-perfil}
       - MINIO_PUBLIC_URL=${MINIO_PUBLIC_URL:-http://localhost:9000}
-      - AVATAR_STORAGE_MODE=${AVATAR_STORAGE_MODE:-public}
+      - AVATAR_STORAGE_MODE=${AVATAR_STORAGE_MODE:-proxy}
     depends_on:
       - auth-service
       - log-service
@@ -113,13 +113,14 @@ services:
     restart: unless-stopped
 
   # 5. MinIO - Object Storage para Uploads de Foto de Perfil (Atividade 6)
-  # Armazena binários das fotos de usuários separadamente do MariaDB
+  # ATENÇÃO: Sem 'ports' no host - acessível APENAS internamente (evita conflito de portas em servidores compartilhados)
+  # Clientes acessam imagens através da rota proxy do catálogo (/api/profile/avatar/...)
   minio:
     image: quay.io/minio/minio:latest
     command: server /data --console-address ":9001"
-    ports:
-      - "${MINIO_HOST_PORT:-9002}:9000"          # API S3 no host (9002 evita conflito com a 9000 do Portainer)
-      - "${MINIO_CONSOLE_PORT:-9003}:9001"  # Console Web do MinIO no host
+    expose:
+      - "9000"
+      - "9001"
     environment:
       - MINIO_ROOT_USER=${MINIO_ROOT_USER:-minioadmin}
       - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD:-minioadmin}

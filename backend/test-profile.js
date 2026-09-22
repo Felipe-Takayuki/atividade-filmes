@@ -146,10 +146,10 @@ async function runTests() {
   // ==============================================================================
   // TESTE 4: Construção de URL e Decisão de Trade-off (Public vs Presigned)
   // ==============================================================================
-  await testCaseAsync('REQUISITO 3: Construção da URL de foto no modo public', async () => {
+  await testCaseAsync('REQUISITO 3: Construção da URL de foto no modo public ou proxy', async () => {
     const fotoKey = 'avatars/user-1-1725900000.png';
     const url = await minioConfig.buildAvatarUrl(fotoKey);
-    assert(url.includes('catalogo-perfil/avatars/user-1-1725900000.png'), 'URL deve conter bucket e key');
+    assert(url.includes('avatars/user-1-1725900000.png'), 'URL deve conter a chave da foto');
   });
 
   await testCaseAsync('REQUISITO 3: Foto nula retorna URL nula', async () => {

@@ -353,7 +353,8 @@ export async function deleteProfilePhoto(req, res) {
  */
 export async function streamAvatar(req, res) {
   try {
-    const objectKey = req.params.fotoKey || req.params[0];
+    const rawKey = req.params.fotoKey || req.params[0];
+    const objectKey = Array.isArray(rawKey) ? rawKey.join('/') : (rawKey || '');
     if (!objectKey) {
       return res.status(400).send('Chave do objeto não especificada.');
     }
