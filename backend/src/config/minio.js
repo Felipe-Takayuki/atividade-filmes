@@ -131,6 +131,10 @@ export async function deleteAvatarFromMinio(objectKey) {
 export async function buildAvatarUrl(objectKey, req = null) {
   if (!objectKey) return null;
 
+  if (AVATAR_STORAGE_MODE === 'proxy') {
+    return `/api/profile/avatar/${objectKey}`;
+  }
+
   if (AVATAR_STORAGE_MODE === 'presigned') {
     try {
       const presignedUrl = await minioClient.presignedGetObject(MINIO_BUCKET, objectKey, 24 * 60 * 60);

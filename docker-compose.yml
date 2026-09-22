@@ -32,7 +32,7 @@ services:
       - JWT_SECRET=${JWT_SECRET:-chave_jwt_secreta_local_dev}
       # Configurações do MinIO Object Storage (Atividade 6)
       - MINIO_ENDPOINT=${MINIO_ENDPOINT:-minio}
-      - MINIO_PORT=${MINIO_PORT:-9000}
+      - MINIO_PORT=9000
       - MINIO_USE_SSL=${MINIO_USE_SSL:-false}
       - MINIO_ROOT_USER=${MINIO_ROOT_USER:-minioadmin}
       - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD:-minioadmin}
@@ -118,8 +118,8 @@ services:
     image: quay.io/minio/minio:latest
     command: server /data --console-address ":9001"
     ports:
-      - "${MINIO_PORT:-9000}:9000"          # API S3 para leitura pública e SDK
-      - "${MINIO_CONSOLE_PORT:-9001}:9001"  # Console Web do MinIO para gerenciamento
+      - "${MINIO_HOST_PORT:-9002}:9000"          # API S3 no host (9002 evita conflito com a 9000 do Portainer)
+      - "${MINIO_CONSOLE_PORT:-9003}:9001"  # Console Web do MinIO no host
     environment:
       - MINIO_ROOT_USER=${MINIO_ROOT_USER:-minioadmin}
       - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD:-minioadmin}
