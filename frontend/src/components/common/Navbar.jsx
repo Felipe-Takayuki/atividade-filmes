@@ -3,23 +3,35 @@ import { useAuth } from '../../context/AuthContext';
 import { AdminPromoteModal } from './AdminPromoteModal';
 import { AuditLogsModal } from './AuditLogsModal';
 import { ProfileModal } from '../profile/ProfileModal';
+import { UpgradeModal } from './UpgradeModal';
 
 export function Navbar({ onSelectMovie = null }) {
   const { user, isAuthenticated, logout } = useAuth();
   const [showPromoteModal, setShowPromoteModal] = useState(false);
   const [showLogsModal, setShowLogsModal] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+  const [upgradeReason, setUpgradeReason] = useState(null);
   const [targetUserId, setTargetUserId] = useState(null);
 
-  // Permite que outros componentes (ex: comentários) abram o perfil de um usuário via evento customizado
+  // Permite que outros componentes abram perfil ou upgrade via eventos customizados
   useEffect(() => {
     const handleOpenProfileEvent = (e) => {
       setTargetUserId(e.detail?.userId || null);
       setShowProfileModal(true);
     };
 
+    const handleOpenUpgradeEvent = (e) => {
+      setUpgradeReason(e.detail?.reason || null);
+      setShowUpgradeModal(true);
+    };
+
     window.addEventListener('app:open-profile', handleOpenProfileEvent);
-    return () => window.removeEventListener('app:open-profile', handleOpenProfileEvent);
+    window.addEventListener('app:open-upgrade', handleOpenUpgradeEvent);
+    return () => {
+      window.removeEventListener('app:open-profile', handleOpenProfileEvent);
+      window.removeEventListener('app:open-upgrade', handleOpenUpgradeEvent);
+    };
   }, []);
 
   return (
@@ -89,7 +101,36 @@ export function Navbar({ onSelectMovie = null }) {
                     <span>Usuário</span>
                   )}
                 </span>
+
+                {/* Selo Exclusivo de Assinante Premium (Atividade 7) */}
+                {user.is_premium && (
+                  <span
+                    id="nav-user-premium"
+                    className="badge-role badge-premium"
+                    title="Membro Premium Ativo (Favoritos ilimitados)"
+                  >
+                    ⭐ Premium
+                  </span>
+                )}
               </div>
+
+              {/* Botão de Upgrade para Plano Premium (Exibido para quem não é premium) */}
+              {!user.is_premium && (
+                <button
+                  id="btn-nav-upgrade"
+                  className="btn btn-warning btn-sm btn-upgrade-nav"
+                  title="Fazer upgrade para o Plano Premium (R$ 9,90/mês)"
+                  onClick={() => {
+                    setUpgradeReason(null);
+                    setShowUpgradeModal(true);
+                  }}
+                >
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
+                    <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+                  </svg>
+                  <span>Seja Premium</span>
+                </button>
+              )}
 
               {/* Botão Meu Perfil */}
               <button
@@ -182,6 +223,13 @@ export function Navbar({ onSelectMovie = null }) {
       <AuditLogsModal
         isOpen={showLogsModal}
         onClose={() => setShowLogsModal(false)}
+      />
+
+      {/* Modal de Assinatura do Plano Premium com Stripe (Atividade 7) */}
+      <UpgradeModal
+        isOpen={showUpgradeModal}
+        onClose={() => setShowUpgradeModal(false)}
+        triggerReason={upgradeReason}
       />
     </>
   );

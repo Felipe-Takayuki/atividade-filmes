@@ -78,7 +78,11 @@ export const api = {
 
     if (!response.ok) {
       const errorMsg = data.error || data.message || `Erro ${response.status}: Falha na requisição`;
-      throw new Error(errorMsg);
+      const err = new Error(errorMsg);
+      err.status = response.status;
+      err.code = data.code;
+      err.data = data;
+      throw err;
     }
 
     return data;
@@ -248,5 +252,20 @@ export const api = {
     return this.request(endpoint, {
       method: 'DELETE'
     });
+  },
+
+  // ===== STRIPE & PLANO PREMIUM (ATIVIDADE 7) =====
+  async createCheckoutSession() {
+    return this.request('/stripe/create-checkout-session', {
+      method: 'POST'
+    });
+  },
+
+  async getStripeStatus() {
+    return this.request('/stripe/status');
+  },
+
+  async getStripeConfig() {
+    return this.request('/stripe/config');
   }
 };

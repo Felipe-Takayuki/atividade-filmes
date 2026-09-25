@@ -393,6 +393,21 @@ export function ProfileModal({ isOpen, onClose, targetUserId = null, onMovieSele
                       <span className={`badge-role badge-${profileUser.role || 'usuario'}`}>
                         {profileUser.role === 'admin' ? '👑 Admin' : '👤 Usuário'}
                       </span>
+
+                      {/* Selo do Plano (Atividade 7) */}
+                      {profileUser.is_premium ? (
+                        <span className="badge-role badge-premium" title="Membro com assinatura Premium ativa">
+                          ⭐ Premium
+                        </span>
+                      ) : (
+                        <span
+                          className="badge-role"
+                          style={{ background: 'rgba(100, 116, 139, 0.25)', color: '#94a3b8', border: '1px solid rgba(100, 116, 139, 0.4)' }}
+                          title="Plano gratuito limitado a 5 favoritos"
+                        >
+                          📦 Gratuito
+                        </span>
+                      )}
                     </div>
 
                     {profileUser.email && (
@@ -531,13 +546,103 @@ export function ProfileModal({ isOpen, onClose, targetUserId = null, onMovieSele
                   </div>
                 )}
 
+                {/* Card de Status do Plano Premium / Gratuito (Atividade 7) */}
+                {profileUser.is_premium ? (
+                  <div
+                    className="plan-status-card plan-premium-card"
+                    style={{
+                      background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.12), rgba(217, 119, 6, 0.05))',
+                      border: '1px solid rgba(245, 158, 11, 0.4)',
+                      borderRadius: '10px',
+                      padding: '0.9rem 1.1rem',
+                      marginBottom: '1.25rem',
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center'
+                    }}
+                  >
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                        <span style={{ fontSize: '1.2rem' }}>👑</span>
+                        <strong style={{ color: '#fbbf24', fontSize: '0.95rem' }}>Plano Premium Ativo</strong>
+                      </div>
+                      <p style={{ margin: '0.2rem 0 0', fontSize: '0.8rem', color: '#cbd5e1' }}>
+                        Benefício exclusivo: Favoritos ilimitados e selo VIP em toda a plataforma.
+                      </p>
+                    </div>
+                    <span
+                      style={{
+                        fontSize: '0.75rem',
+                        fontWeight: '700',
+                        color: '#10b981',
+                        background: 'rgba(16, 185, 129, 0.15)',
+                        padding: '0.25rem 0.6rem',
+                        borderRadius: '12px',
+                        border: '1px solid rgba(16, 185, 129, 0.3)'
+                      }}
+                    >
+                      ✓ Ativo
+                    </span>
+                  </div>
+                ) : (
+                  <div
+                    className="plan-status-card plan-free-card"
+                    style={{
+                      background: 'rgba(30, 41, 59, 0.6)',
+                      border: '1px solid rgba(148, 163, 184, 0.2)',
+                      borderRadius: '10px',
+                      padding: '0.9rem 1.1rem',
+                      marginBottom: '1.25rem',
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      flexWrap: 'wrap',
+                      gap: '0.75rem'
+                    }}
+                  >
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                        <span style={{ fontSize: '1.1rem' }}>📦</span>
+                        <strong style={{ color: '#e2e8f0', fontSize: '0.95rem' }}>Plano Gratuito</strong>
+                        <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>(Limite de 5 favoritos)</span>
+                      </div>
+                      <p style={{ margin: '0.2rem 0 0', fontSize: '0.8rem', color: '#94a3b8' }}>
+                        {isSelf
+                          ? 'Desbloqueie favoritos ilimitados assinando o Plano Premium por R$ 9,90/mês.'
+                          : 'Este usuário está utilizando o plano gratuito com limite de 5 filmes.'}
+                      </p>
+                    </div>
+                    {isSelf && (
+                      <button
+                        type="button"
+                        className="btn btn-warning btn-sm"
+                        style={{
+                          background: 'linear-gradient(135deg, #f59e0b, #d97706)',
+                          border: 'none',
+                          color: '#ffffff',
+                          fontWeight: '700',
+                          padding: '0.4rem 0.8rem'
+                        }}
+                        onClick={() => {
+                          onClose();
+                          window.dispatchEvent(new CustomEvent('app:open-upgrade'));
+                        }}
+                      >
+                        <span>⭐ Upgrade Premium</span>
+                      </button>
+                    )}
+                  </div>
+                )}
+
                 {/* Seção de Filmes Favoritados (REQUISITO 1) */}
                 <div className="profile-favorites-section">
                   <div className="profile-section-header">
                     <h4 className="profile-section-title">
                       ⭐ Filmes Favoritados
                       <span className="badge-count" style={{ marginLeft: '0.5rem' }}>
-                        {favorites.length}
+                        {profileUser.is_premium
+                          ? `${favorites.length} (Ilimitado - Premium)`
+                          : `${favorites.length} / 5 (Plano Free)`}
                       </span>
                     </h4>
                     <p style={{ fontSize: '0.78rem', color: '#94a3b8', margin: '0.15rem 0 0' }}>

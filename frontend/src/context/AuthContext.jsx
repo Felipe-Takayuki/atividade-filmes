@@ -65,10 +65,38 @@ export function AuthProvider({ children }) {
     return false;
   }, [showAlert]);
 
+  // Checa status de retorno de pagamento do Stripe (?payment=success ou ?payment=cancelled)
+  const checkUrlPaymentStatus = useCallback(async () => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const payment = urlParams.get('payment');
+    const sessionId = urlParams.get('session_id');
+
+    if (payment === 'success' || sessionId) {
+      history.replaceState(null, '', window.location.pathname);
+      showAlert('🎉 Pagamento concluído com sucesso! Sua assinatura do Plano Premium está ativa. Aproveite favoritos ilimitados!', 'success');
+      try {
+        const res = await api.getProfile().catch(() => api.me());
+        const userData = res.user || res;
+        setUser(userData);
+        api.setUser(userData);
+      } catch (err) {
+        console.warn('[AuthContext] Erro ao sincronizar status premium pós-checkout:', err);
+      }
+      return true;
+    } else if (payment === 'cancelled') {
+      history.replaceState(null, '', window.location.pathname);
+      showAlert('O processo de assinatura no Stripe foi cancelado. Você pode assinar a qualquer momento!', 'info');
+      return true;
+    }
+    return false;
+  }, [showAlert]);
+
   // Inicialização de sessão e verificação de autenticação
   useEffect(() => {
     async function init() {
       const hasTokenInUrl = await checkUrlResetToken();
+      await checkUrlPaymentStatus();
+
       if (!hasTokenInUrl) {
         const savedToken = api.getToken();
         const savedUser = api.getUser();

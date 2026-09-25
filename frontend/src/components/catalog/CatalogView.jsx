@@ -55,7 +55,19 @@ export function CatalogView() {
       setMovies((prev) =>
         prev.map((m) => (m.id === movie.id ? { ...m, is_favorite: isCurrentlyFav } : m))
       );
-      showToast(err.message || 'Erro ao atualizar favoritos.', 'error');
+
+      if (err.code === 'PREMIUM_REQUIRED' || err.status === 403) {
+        showToast(err.message || 'Limite de 5 favoritos atingido no plano gratuito.', 'warning');
+        window.dispatchEvent(
+          new CustomEvent('app:open-upgrade', {
+            detail: {
+              reason: err.message || 'Você atingiu o limite de 5 filmes favoritos do plano gratuito. Faça upgrade para salvar ilimitado!'
+            }
+          })
+        );
+      } else {
+        showToast(err.message || 'Erro ao atualizar favoritos.', 'error');
+      }
     }
   };
 

@@ -288,6 +288,12 @@ export function CommentsModal({ movie, onClose, onCommentsCountChange }) {
                               {comment.usuario_role === 'admin' ? 'Admin' : 'Usuário'}
                             </span>
 
+                            {comment.usuario_is_premium && (
+                              <span className="badge-role badge-premium" title="Assinante Premium Ativo">
+                                ⭐ Premium
+                              </span>
+                            )}
+
                             <div className="comment-date">
                               {formatDate(comment.criado_em)}
                             </div>
