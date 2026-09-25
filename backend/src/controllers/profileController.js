@@ -26,9 +26,9 @@ export async function getProfile(req, res) {
 
     const isSelf = targetId === requesterId;
 
-    // 1. Busca dados do usuário no MariaDB
+    // 1. Busca dados do usuário no MariaDB (incluindo status do Plano Premium)
     const [users] = await pool.query(
-      'SELECT id, nome, email, role, bio, foto_key, criado_em FROM usuarios WHERE id = ?',
+      'SELECT id, nome, email, role, bio, foto_key, is_premium, stripe_customer_id, stripe_subscription_id, premium_since, criado_em FROM usuarios WHERE id = ?',
       [targetId]
     );
 
@@ -37,6 +37,7 @@ export async function getProfile(req, res) {
     }
 
     const user = users[0];
+    const isPremium = Boolean(user.is_premium);
     const fotoUrl = await buildAvatarUrl(user.foto_key, req);
 
     // 2. Busca lista de filmes favoritados pelo usuário (dado que existe desde a atividade 2)
@@ -66,6 +67,9 @@ export async function getProfile(req, res) {
         foto_key: user.foto_key || null,
         foto_url: fotoUrl,
         role: user.role || 'usuario',
+        is_premium: isPremium,
+        premium_since: user.premium_since || null,
+        max_favorites: isPremium ? null : 5,
         criado_em: user.criado_em,
         is_self: isSelf
       },

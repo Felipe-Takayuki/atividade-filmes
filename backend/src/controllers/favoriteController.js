@@ -25,9 +25,19 @@ export async function listFavorites(req, res) {
       poster_url: fav.poster_path ? (fav.poster_path.startsWith('http') ? fav.poster_path : `${IMAGE_BASE_URL}${fav.poster_path}`) : null
     }));
 
+    const [userRows] = await pool.query(
+      'SELECT is_premium FROM usuarios WHERE id = ?',
+      [userId]
+    );
+    const isPremium = Boolean(userRows[0]?.is_premium);
+    const FREE_LIMIT = 5;
+
     return res.json({
       success: true,
       total: formattedFavorites.length,
+      is_premium: isPremium,
+      limit: isPremium ? null : FREE_LIMIT,
+      remaining: isPremium ? null : Math.max(0, FREE_LIMIT - formattedFavorites.length),
       favorites: formattedFavorites
     });
   } catch (err) {
@@ -54,6 +64,57 @@ export async function addFavorite(req, res) {
       return res.status(400).json({ error: 'tmdb_movie_id deve ser um número inteiro.' });
     }
 
+    // REQUISITO 4 — Benefício real de quem é premium:
+    // Usuários do plano gratuito têm limite de até 5 favoritos.
+    // Usuários com Plano Premium têm favoritos ILIMITADOS.
+    const [userRows] = await pool.query(
+      'SELECT is_premium FROM usuarios WHERE id = ?',
+      [userId]
+    );
+    const isPremium = Boolean(userRows[0]?.is_premium);
+
+    // Se não for premium, verifica se o filme já está favoritado antes de aplicar o limite
+    if (!isPremium) {
+      const [existingFav] = await pool.query(
+        'SELECT id FROM favoritos WHERE usuario_id = ? AND tmdb_movie_id = ?',
+        [userId, movieId]
+      );
+
+      // Se for um novo filme a ser favoritado
+      if (existingFav.length === 0) {
+        const [countRows] = await pool.query(
+          'SELECT COUNT(*) as total FROM favoritos WHERE usuario_id = ?',
+          [userId]
+        );
+        const currentTotal = countRows[0]?.total || 0;
+        const FREE_LIMIT = 5;
+
+        if (currentTotal >= FREE_LIMIT) {
+          const clientIp = getClientIp(req);
+          sendLogEvent({
+            usuario_id: userId,
+            usuario_email: req.user?.email,
+            acao: 'acao_negada_403',
+            ip: clientIp,
+            detalhes: {
+              motivo: `Limite de favoritos atingido no plano gratuito (${currentTotal}/${FREE_LIMIT})`,
+              recurso: 'POST /api/favorites',
+              tmdb_movie_id: movieId,
+              titulo: titulo.trim()
+            }
+          });
+
+          return res.status(403).json({
+            error: `Limite de favoritos atingido no plano gratuito (máximo de ${FREE_LIMIT} filmes). Assine o Plano Premium para ter favoritos ilimitados!`,
+            code: 'PREMIUM_REQUIRED',
+            limit: FREE_LIMIT,
+            current_total: currentTotal,
+            upgrade_url: '/api/stripe/checkout'
+          });
+        }
+      }
+    }
+
     // Insere ou atualiza caso já exista
     await pool.query(
       `INSERT INTO favoritos (usuario_id, tmdb_movie_id, titulo, poster_path)
@@ -72,7 +133,8 @@ export async function addFavorite(req, res) {
       ip: clientIp,
       detalhes: {
         tmdb_movie_id: movieId,
-        titulo: titulo.trim()
+        titulo: titulo.trim(),
+        is_premium: isPremium
       }
     });
 
@@ -84,7 +146,8 @@ export async function addFavorite(req, res) {
         tmdb_movie_id: movieId,
         titulo: titulo.trim(),
         poster_path: poster_path || null
-      }
+      },
+      is_premium: isPremium
     });
   } catch (err) {
     console.error('[Favorites] Erro ao adicionar favorito:', err);

@@ -15,10 +15,11 @@ export async function listMovieComments(req, res) {
       return res.status(400).json({ error: 'tmdb_movie_id inválido.' });
     }
 
-    // Permite que todos os usuários vejam todos os comentários de todos os usuários com foto de perfil
+    // Permite que todos os usuários vejam todos os comentários de todos os usuários com foto de perfil e selo Premium
     const [rows] = await pool.query(
       `SELECT c.id, c.usuario_id, c.tmdb_movie_id, c.texto, c.criado_em,
-              u.nome as usuario_nome, u.role as usuario_role, u.bio as usuario_bio, u.foto_key
+              u.nome as usuario_nome, u.role as usuario_role, u.bio as usuario_bio, u.foto_key,
+              u.is_premium as usuario_is_premium
        FROM comentarios c
        JOIN usuarios u ON c.usuario_id = u.id
        WHERE c.tmdb_movie_id = ?
@@ -29,6 +30,7 @@ export async function listMovieComments(req, res) {
     const formattedComments = await Promise.all(
       rows.map(async (c) => ({
         ...c,
+        usuario_is_premium: Boolean(c.usuario_is_premium),
         foto_url: await buildAvatarUrl(c.foto_key, req)
       }))
     );
