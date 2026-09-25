@@ -15,6 +15,9 @@ import favoriteRoutes from './routes/favoriteRoutes.js';
 import commentRoutes from './routes/commentRoutes.js';
 import logRoutes from './routes/logRoutes.js';
 import profileRoutes from './routes/profileRoutes.js';
+import stripeRoutes from './routes/stripeRoutes.js';
+import { handleStripeWebhook } from './controllers/stripeController.js';
+import { isStripeConfigured } from './config/stripe.js';
 import { deleteComment } from './controllers/commentController.js';
 import { authenticate } from './middleware/auth.js';
 
@@ -34,6 +37,16 @@ app.use(cors({
   origin: true,
   credentials: true
 }));
+
+// Rota do Webhook do Stripe (Atividade 7)
+// O Stripe assina criptograficamente cada requisição. O cálculo do HMAC SHA-256
+// exige estritamente o corpo bruto (Buffer) sem qualquer parsing prévio de JSON.
+app.post(
+  '/api/stripe/webhook',
+  express.raw({ type: 'application/json' }),
+  handleStripeWebhook
+);
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
@@ -104,6 +117,9 @@ app.get('/api/health', async (req, res) => {
       mode: AVATAR_STORAGE_MODE,
       public_url: MINIO_PUBLIC_URL
     },
+    stripe: {
+      configured: isStripeConfigured()
+    },
     tmdb_configured: tmdbKeyConfigured
   });
 });
@@ -116,6 +132,7 @@ app.delete('/api/comments/:id', authenticate, deleteComment);
 app.use('/api/favorites', favoriteRoutes);
 app.use('/api/logs', logRoutes);
 app.use('/api/profile', profileRoutes); // Atividade 6: Upload e Perfil de Usuário
+app.use('/api/stripe', stripeRoutes);   // Atividade 7: Plano Premium com Stripe (Checkout e Status)
 
 // Rota fallback para SPA (Single Page Application)
 app.use((req, res, next) => {
