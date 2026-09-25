@@ -1,7 +1,8 @@
 # 🎬 Catálogo de Filmes — Tom Hanks (Microsserviços, RBAC, MinIO & Plano Premium com Stripe)
 
-> Atividades Práticas 3, 4, 5, 6 e 7 da disciplina **ISW055 - Introdução à Computação em Nuvem**  
-> Professor: **Allan Siriani** ([@siriani](https://github.com/siriani))
+> Atividades Práticas 1, 2, 3, 4, 5, 6 e 7 da disciplina **ISW055 - Introdução à Computação em Nuvem**  
+> Professor: **Allan Siriani** ([@siriani](https://github.com/siriani) / [github.com/siriani](https://github.com/siriani))  
+> 📑 **Avaliação P1 (Relatório Bimestral de Atividades):** [P1_ISW055_Felipe_Takahashi.pdf](docs/P1_ISW055_Felipe_Takahashi.pdf)
 
 ---
 
