@@ -1,6 +1,6 @@
-# 🎬 Catálogo de Filmes — Tom Hanks (Microsserviços, RBAC, Logs de Auditoria & Object Storage MinIO)
+# 🎬 Catálogo de Filmes — Tom Hanks (Microsserviços, RBAC, MinIO & Plano Premium com Stripe)
 
-> Atividades Práticas 3, 4, 5 e 6 da disciplina **ISW055 - Introdução à Computação em Nuvem**  
+> Atividades Práticas 3, 4, 5, 6 e 7 da disciplina **ISW055 - Introdução à Computação em Nuvem**  
 > Professor: **Allan Siriani** ([@siriani](https://github.com/siriani))
 
 ---
@@ -1106,3 +1106,170 @@ node backend/test-profile.js
 📊 Resultado dos Testes: 10 passaram, 0 falharam.
 ==============================================
 ```
+
+---
+
+# 💳 ATIVIDADE 7: SERVIÇO BASEADO EM PAGAMENTO — PLANO PREMIUM COM STRIPE
+
+> Continuação direta da Atividade 6 (Upload e Perfil).  
+> Modelo de negócio para o catálogo com cobrança real (em **Modo de Teste**) utilizando **Stripe Checkout** e **Webhooks Assinados**.  
+> Professor da Disciplina: **Allan Siriani** ([@siriani](https://github.com/siriani)).
+
+---
+
+## 1. Conceito: Por que Pagamento é um Serviço à Parte?
+
+Armazenar dados de cartão de crédito (número, validade e CVV) exige o cumprimento rigoroso de centenas de normas de conformidade internacional de segurança (**PCI-DSS**). A esmagadora maioria dos sistemas corporativos e aplicações web nunca deve tentar processar ou persistir dados de cartão por conta própria.
+
+### A Abordagem Segura Adotada:
+1. **Página de Checkout Hospedada pelo Provedor (Stripe Checkout):** O usuário digita seus dados em uma página isolada mantida pelo Stripe. O nosso backend **nunca** vê o número do cartão, código de segurança ou senha.
+2. **Confirmação Assíncrona via Webhook:** A confirmação de pagamento não é imediata na requisição HTTP que abriu a página. O Stripe faz uma chamada HTTP assíncrona (`POST /api/stripe/webhook`) para o nosso backend informando o evento `checkout.session.completed`.
+3. **Validação Rigorosa de Assinatura Criptográfica:** O backend valida o cabeçalho `stripe-signature` com o segredo do webhook (`STRIPE_WEBHOOK_SECRET`) usando HMAC SHA-256 sobre o **corpo bruto (`raw Body`)**, rejeitando qualquer requisição forjada.
+
+```
+                           FLUXO DE PAGAMENTO STRIPE
+
+ ┌───────────────┐          ┌───────────────────┐          ┌──────────────────┐
+ │    Usuário    │          │  Catálogo Backend │          │  Stripe (SaaS)   │
+ └───────┬───────┘          └─────────┬─────────┘          └────────┬─────────┘
+         │                            │                             │
+         │  1. Clica "Seja Premium"   │                             │
+         │───────────────────────────>│                             │
+         │                            │  2. Cria Checkout Session   │
+         │                            │────────────────────────────>│
+         │                            │<────────────────────────────│
+         │  3. Redirecionamento (303) │     Retorna session.url     │
+         │<───────────────────────────│                             │
+         │                                                          │
+         │  4. Digita cartão de teste (4242...) na página Stripe    │
+         │─────────────────────────────────────────────────────────>│
+         │                                                          │
+         │  5. Redireciona de volta para o app (?payment=success)   │
+         │<─────────────────────────────────────────────────────────│
+         │                            │                             │
+         │                            │ 6. Webhook Assíncrono (HMAC)│
+         │                            │    checkout.session.compl.  │
+         │                            │<────────────────────────────│
+         │                            │                             │
+         │                            │ 7. Valida assinatura crypto │
+         │                            │    Atualiza is_premium = 1  │
+         │                            │    no MariaDB               │
+         │                            │                             │
+         │  8. Benefício Imediato:    │                             │
+         │     Favoritos Ilimitados e │                             │
+         │     Selo VIP ⭐ Premium    │                             │
+         │<───────────────────────────│                             │
+```
+
+---
+
+## 2. O Que Foi Implementado
+
+| Requisito | Descrição | Status |
+| :--- | :--- | :---: |
+| **1. Plano no Stripe (Modo de Teste)** | Suporte a plano recorrente de **R$ 9,90/mês**. Suporta tanto `STRIPE_PRICE_ID` estático quanto criação dinâmica via `price_data` em tempo de execução. | ✅ Concluído |
+| **2. Endpoint de Checkout** | Rota `POST /api/stripe/create-checkout-session` e `GET /api/stripe/checkout` que criam a sessão no Stripe com metadados do usuário autenticado e redirecionam para a página de pagamento. | ✅ Concluído |
+| **3. Endpoint de Webhook Assinado** | Rota `POST /api/stripe/webhook` que recebe `express.raw`, valida a assinatura HMAC SHA-256 (`stripe-signature`) e atualiza o usuário no MariaDB para `is_premium = 1`, guardando `stripe_customer_id`, `stripe_subscription_id` e `premium_since`. Trata também cancelamentos (`customer.subscription.deleted`). | ✅ Concluído |
+| **4. Benefício Real de quem é Premium** | **Diferença comprovável de comportamento:**<br>• Usuários comuns (gratuitos): limite máximo de **5 filmes favoritos** (tentativa do 6º retorna `HTTP 403 Forbidden` com código `PREMIUM_REQUIRED`).<br>• Usuários Premium: **favoritos ilimitados**.<br>• Selo VIP dourado `⭐ Premium` visível no Navbar, no Perfil e nos Comentários. | ✅ Concluído |
+| **5. NUNCA Guardar Dado de Cartão** | Conformidade estrita com PCI-DSS: o banco armazena apenas IDs de referência gerados pelo Stripe (`stripe_customer_id`, `stripe_subscription_id`). Zero dados de cartão chegam ou residem no banco de dados. | ✅ Concluído |
+
+---
+
+## 3. Estrutura do Banco de Dados (MariaDB)
+
+As seguintes colunas foram migradas na tabela `usuarios`:
+
+```sql
+ALTER TABLE usuarios ADD COLUMN is_premium TINYINT(1) NOT NULL DEFAULT 0 AFTER foto_key;
+ALTER TABLE usuarios ADD COLUMN stripe_customer_id VARCHAR(255) NULL AFTER is_premium;
+ALTER TABLE usuarios ADD COLUMN stripe_subscription_id VARCHAR(255) NULL AFTER stripe_customer_id;
+ALTER TABLE usuarios ADD COLUMN premium_since TIMESTAMP NULL AFTER stripe_subscription_id;
+```
+
+---
+
+## 4. Variáveis de Ambiente (.env)
+
+No arquivo `.env` (ou `.env.example`), adicione as configurações do Stripe:
+
+```env
+# ===== STRIPE PAGAMENTO E PLANO PREMIUM (ATIVIDADE 7) =====
+# Chaves de teste obtidas gratuitamente em https://dashboard.stripe.com/test/apikeys
+STRIPE_SECRET_KEY=sk_test_...
+STRIPE_PUBLISHABLE_KEY=pk_test_...
+
+# Segredo de assinatura do webhook (obtido no painel ou via stripe listen)
+STRIPE_WEBHOOK_SECRET=whsec_...
+
+# Opcional: ID de preço existente no dashboard (ex: price_12345).
+# Se deixado em branco, o backend cria o plano dinamicamente por R$ 9,90/mês.
+STRIPE_PRICE_ID=
+```
+
+---
+
+## 5. Bateria de Testes Automatizados (9/9 Aprovados)
+
+Uma suíte automatizada cobre ponta a ponta todos os requisitos da Atividade 7:
+
+```bash
+npm run test:stripe
+# ou
+node backend/test-stripe.js
+```
+
+### Resultados dos Testes:
+```
+🧪 Iniciando Bateria de Testes: Atividade 7 (Plano Premium com Stripe)...
+👤 Usuário de teste criado: ID 6 (stripe_test_1790369918512@exemplo.com)
+  ✅ [PASS] REQUISITO 1: Tabela usuarios possui colunas is_premium, stripe_customer_id, stripe_subscription_id e premium_since
+  ✅ [PASS] REQUISITO 5: Garantia PCI-DSS — Nenhuma coluna de cartão (cartao, cvv, pan, numero_cartao) existe no banco
+  ✅ [PASS] REQUISITO 4: Usuário comum (não-premium) tem limite de 5 favoritos; ao tentar o 6º recebe HTTP 403
+  ✅ [PASS] REQUISITO 3: Webhook rejeita chamada sem cabeçalho "stripe-signature" com HTTP 400
+  ✅ [PASS] REQUISITO 3: Webhook rejeita requisição com assinatura falsa/corrompida com HTTP 400
+  ✅ [PASS] REQUISITO 3: Webhook assinado autenticamente (checkout.session.completed) marca usuário como premium: true no banco
+  ✅ [PASS] REQUISITO 4: Usuário agora Premium adiciona 6º e 7º filme favorito sem nenhum bloqueio (Ilimitado)
+  ✅ [PASS] REQUISITO 2: Usuário já Premium é avisado caso tente assinar novamente
+  ✅ [PASS] REQUISITO 3: Webhook de cancelamento (customer.subscription.deleted) remove status premium do usuário
+
+==============================================
+🎉 Fim dos Testes: 9 passaram, 0 falharam.
+==============================================
+```
+
+---
+
+## 6. Como Testar Manualmente com a Stripe CLI
+
+Para simular o fluxo completo de checkout e recebimento de webhooks em ambiente local:
+
+### 1. Iniciar o encaminhamento de webhooks:
+```bash
+stripe listen --forward-to localhost:3000/api/stripe/webhook
+```
+O comando exibirá seu segredo de webhook no terminal:
+```
+> Ready! Your webhook signing secret is whsec_xxxxxxxxxxxxxxxxx (^C to quit)
+```
+Copie esse valor e configure no seu `.env` como `STRIPE_WEBHOOK_SECRET=whsec_xxxxxxxxxxxxxxxxx`.
+
+### 2. No Catálogo de Filmes:
+1. Faça login com um usuário comum.
+2. No menu superior ou no seu Perfil, clique em **"👑 Seja Premium"**.
+3. O modal de apresentação exibirá as vantagens do Plano Premium (R$ 9,90/mês).
+4. Clique em **"💳 Assinar por R$ 9,90/mês no Stripe"**.
+5. Você será redirecionado para a página de Checkout do Stripe em Modo de Teste.
+6. Digite o cartão de teste do Stripe: `4242 4242 4242 4242`, qualquer validade futura e qualquer CVC (ex: `123`).
+7. Ao clicar em "Assinar", o Stripe processa o pagamento e o webhook envia o evento `checkout.session.completed` para `/api/stripe/webhook`.
+8. O backend valida a assinatura, atualiza seu usuário para `is_premium = 1` no MariaDB e redireciona de volta para o catálogo com mensagem de sucesso.
+9. Agora você possui o selo **⭐ Premium** e favoritos ilimitados!
+
+---
+
+## 7. Evidências e Telas da Atividade 7
+
+- **Selo Premium no Navbar e Perfil:** Badge visual com gradiente dourado (`⭐ Premium`).
+- **Modal de Upgrade:** Apresentação clara de preço, benefícios e garantia de privacidade PCI-DSS.
+- **Bloqueio Comprovado de Favoritos:** Tentativa de favoritar mais de 5 filmes no plano gratuito bloqueada no backend com `HTTP 403 Forbidden` (`PREMIUM_REQUIRED`) e auditada no Redis Streams.
+- **Liberação Ilimitada:** Usuário com status Premium adiciona 6º, 7º e quantos títulos desejar sem restrições.
+
