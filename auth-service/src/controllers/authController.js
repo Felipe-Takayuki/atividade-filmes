@@ -83,7 +83,7 @@ export async function login(req, res) {
     const emailNorm = email.trim().toLowerCase();
 
     const [rows] = await pool.query(
-      'SELECT id, nome, email, senha_hash, role FROM usuarios WHERE email = ?',
+      'SELECT id, nome, email, senha_hash, role, is_premium, premium_since FROM usuarios WHERE email = ?',
       [emailNorm]
     );
 
@@ -102,7 +102,9 @@ export async function login(req, res) {
       id: userRecord.id,
       nome: userRecord.nome,
       email: userRecord.email,
-      role: userRecord.role || 'usuario'
+      role: userRecord.role || 'usuario',
+      is_premium: Boolean(userRecord.is_premium),
+      premium_since: userRecord.premium_since || null
     };
 
     const token = generateToken(user);
@@ -131,7 +133,7 @@ export async function me(req, res) {
     }
 
     const [rows] = await pool.query(
-      'SELECT id, nome, email, role, bio, foto_key, criado_em FROM usuarios WHERE id = ?',
+      'SELECT id, nome, email, role, bio, foto_key, is_premium, premium_since, criado_em FROM usuarios WHERE id = ?',
       [userId]
     );
 
@@ -139,9 +141,14 @@ export async function me(req, res) {
       return res.status(404).json({ error: 'Usuário não encontrado.' });
     }
 
+    const userData = {
+      ...rows[0],
+      is_premium: Boolean(rows[0].is_premium)
+    };
+
     return res.json({
       success: true,
-      user: rows[0]
+      user: userData
     });
   } catch (err) {
     console.error('[Auth-Service] Erro ao consultar perfil:', err);

@@ -87,6 +87,66 @@ export async function initDatabase(retries = 5, delayMs = 3000) {
         console.warn('[Auth-DB] Verificação da coluna foto_key:', fotoErr.message);
       }
 
+      // Garante que a coluna 'is_premium' existe (Atividade 7 - Plano Premium Stripe)
+      try {
+        const [columns] = await connection.query(`
+          SHOW COLUMNS FROM usuarios LIKE 'is_premium';
+        `);
+        if (columns.length === 0) {
+          console.log('[Auth-DB] Adicionando coluna "is_premium" na tabela usuarios...');
+          await connection.query(`
+            ALTER TABLE usuarios ADD COLUMN is_premium TINYINT(1) NOT NULL DEFAULT 0 AFTER foto_key;
+          `);
+        }
+      } catch (premErr) {
+        console.warn('[Auth-DB] Verificação da coluna is_premium:', premErr.message);
+      }
+
+      // Garante que a coluna 'stripe_customer_id' existe (Atividade 7 - ID de Cliente Stripe)
+      try {
+        const [columns] = await connection.query(`
+          SHOW COLUMNS FROM usuarios LIKE 'stripe_customer_id';
+        `);
+        if (columns.length === 0) {
+          console.log('[Auth-DB] Adicionando coluna "stripe_customer_id" na tabela usuarios...');
+          await connection.query(`
+            ALTER TABLE usuarios ADD COLUMN stripe_customer_id VARCHAR(255) NULL AFTER is_premium;
+          `);
+        }
+      } catch (custErr) {
+        console.warn('[Auth-DB] Verificação da coluna stripe_customer_id:', custErr.message);
+      }
+
+      // Garante que a coluna 'stripe_subscription_id' existe (Atividade 7 - ID de Assinatura Stripe)
+      try {
+        const [columns] = await connection.query(`
+          SHOW COLUMNS FROM usuarios LIKE 'stripe_subscription_id';
+        `);
+        if (columns.length === 0) {
+          console.log('[Auth-DB] Adicionando coluna "stripe_subscription_id" na tabela usuarios...');
+          await connection.query(`
+            ALTER TABLE usuarios ADD COLUMN stripe_subscription_id VARCHAR(255) NULL AFTER stripe_customer_id;
+          `);
+        }
+      } catch (subErr) {
+        console.warn('[Auth-DB] Verificação da coluna stripe_subscription_id:', subErr.message);
+      }
+
+      // Garante que a coluna 'premium_since' existe (Atividade 7 - Timestamp de Início Premium)
+      try {
+        const [columns] = await connection.query(`
+          SHOW COLUMNS FROM usuarios LIKE 'premium_since';
+        `);
+        if (columns.length === 0) {
+          console.log('[Auth-DB] Adicionando coluna "premium_since" na tabela usuarios...');
+          await connection.query(`
+            ALTER TABLE usuarios ADD COLUMN premium_since TIMESTAMP NULL AFTER stripe_subscription_id;
+          `);
+        }
+      } catch (sinceErr) {
+        console.warn('[Auth-DB] Verificação da coluna premium_since:', sinceErr.message);
+      }
+
       // 2. Tabela de Tokens de Redefinição de Senha
       await connection.query(`
         CREATE TABLE IF NOT EXISTS reset_tokens (

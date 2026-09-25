@@ -6,7 +6,10 @@
   "type": "module",
   "scripts": {
     "start": "node src/index.js",
-    "dev": "node --watch src/index.js"
+    "dev": "node --watch src/index.js",
+    "test": "node test-stripe.js && node test-profile.js",
+    "test:stripe": "node test-stripe.js",
+    "test:profile": "node test-profile.js"
   },
   "keywords": [
     "tom-hanks",
@@ -27,6 +30,7 @@
     "minio": "^8.0.7",
     "morgan": "^1.10.1",
     "multer": "^2.4.0",
-    "mysql2": "^3.19.0"
+    "mysql2": "^3.19.0",
+    "stripe": "^22.6.2"
   }
 }

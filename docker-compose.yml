@@ -39,6 +39,12 @@ services:
       - MINIO_BUCKET=${MINIO_BUCKET:-catalogo-perfil}
       - MINIO_PUBLIC_URL=${MINIO_PUBLIC_URL:-http://localhost:9000}
       - AVATAR_STORAGE_MODE=${AVATAR_STORAGE_MODE:-proxy}
+      # Configurações do Stripe Plano Premium (Atividade 7)
+      - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY:-}
+      - STRIPE_PUBLISHABLE_KEY=${STRIPE_PUBLISHABLE_KEY:-}
+      - STRIPE_WEBHOOK_SECRET=${STRIPE_WEBHOOK_SECRET:-}
+      - STRIPE_PRICE_ID=${STRIPE_PRICE_ID:-}
+      - APP_URL=${APP_URL:-http://localhost:3000}
     depends_on:
       - auth-service
       - log-service
