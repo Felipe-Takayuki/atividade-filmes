@@ -28,16 +28,20 @@
 #show table: set text(hyphenate: false)
 #show table: set par(justify: false)
 
-#let evidencia(legenda, arquivo: none, altura: auto) = figure(
+#let evidencia(legenda, arquivo: none, altura: auto, largura: auto, pagina: 1) = figure(
   if arquivo == none {
     rect(width: 100%, height: 4.5cm, radius: 4pt, stroke: (paint: luma(170), dash: "dashed"))[
       #align(center + horizon)[#text(fill: luma(130), size: 9pt)[Sem imagem]]
     ]
   } else {
-    if altura == auto {
-      image(arquivo, width: 92%)
+    if altura == auto and largura == auto {
+      image(arquivo, width: 92%, page: pagina)
+    } else if altura != auto and largura != auto {
+      image(arquivo, width: largura, height: altura, page: pagina)
+    } else if altura != auto {
+      image(arquivo, height: altura, page: pagina)
     } else {
-      image(arquivo, height: altura)
+      image(arquivo, width: largura, page: pagina)
     }
   },
   kind: image,
@@ -174,7 +178,12 @@ A tabela a seguir consolida o cronograma oficial de entregas do primeiro bimestr
 #pagebreak()
 
 // ---------- ATIVIDADE 1 (Página 2/2) ----------
-#evidencia([Atividade 1 — resultado funcional (Gerenciador de Registros em Flask com dados de banco.json)], arquivo: "prints/atv1-resultado.png", altura: 10cm)
+#grid(
+  columns: (1fr, 1fr),
+  gutter: 10pt,
+  evidencia([Lista Telefônica — Contatos Ativos], arquivo: "prints/Lista Telefônica _ Agenda de Contatos.pdf", pagina: 2, altura: 8cm),
+  evidencia([Lista Telefônica — Lixeira (Soft Delete)], arquivo: "prints/Lista Telefônica - Lixeira _ Agenda de Contatos.pdf", pagina: 2, altura: 8cm),
+)
 
 *Dificuldades e como foram resolvidas.* O principal desafio técnico consistiu em modelar a alternância entre itens ativos e itens na lixeira sem incorrer na perda permanente de dados durante a manipulação em JSON. A solução adotada foi a implementação do padrão de *soft delete*, marcando os registros com status `"apagado"` e registrando a data de exclusão, criando endpoints segregados (`/dados` para ativos e `/lixeira` para restauração/hard delete). Essa abordagem simplificou a migração posterior para as tabelas relacionais do MySQL.
 
@@ -187,7 +196,7 @@ A tabela a seguir consolida o cronograma oficial de entregas do primeiro bimestr
   planejada: "20/08/2026",
   realizada: "20/08/2026 16:34",
   situacao: "entregue",
-  evidencia-desc: "GitHub — commit 230de48 + README + Issue #1 + stack Portainer",
+  evidencia-desc: "GitHub — commit 230de48 + README + Issue #1 + print do catálogo",
   url: "https://github.com/Felipe-Takayuki/atividade-filmes/issues/1",
 )
 
@@ -198,7 +207,7 @@ A tabela a seguir consolida o cronograma oficial de entregas do primeiro bimestr
 #pagebreak()
 
 // ---------- ATIVIDADE 2 (Página 2/2) ----------
-#evidencia([Atividade 2 — resultado da infraestrutura (Portainer com containers catalogo e mariadb rodando em 20/08/2026)], arquivo: "prints/atv2-resultado.png", altura: 4.8cm)
+#evidencia([Atividade 2 — resultado funcional (Catálogo de Filmes com Tom Hanks em execução no navegador)], arquivo: "prints/screenshot-2026-10-02_12-55-47.png", altura: 8.5cm)
 
 *Dificuldades e como foram resolvidas.* Durante o deploy no ambiente do Portainer, foram identificados conflitos gerados por nomes estáticos de containers e vinculação desnecessária de portas do MariaDB diretamente na interface de rede do host. O problema foi sanado com o commit `230de48`, removendo o mapeamento de portas externas no banco de dados e padronizando variáveis de ambiente no Compose, viabilizando a inicialização limpa da stack na porta 3000.
 
@@ -222,7 +231,12 @@ A tabela a seguir consolida o cronograma oficial de entregas do primeiro bimestr
 #pagebreak()
 
 // ---------- ATIVIDADE 3 (Página 2/2) ----------
-#evidencia([Atividade 3 — resultado funcional (fluxo completo de redefinição de senha e e-mail transacional via Mailtrap)], arquivo: "prints/atv3-resultado.png", altura: 11cm)
+#grid(
+  columns: (1fr, 1fr),
+  gutter: 10pt,
+  evidencia([Tela de Login com auth-service isolado], arquivo: "prints/screenshot-2026-10-02_13-01-16.png", altura: 7.2cm),
+  evidencia([Recuperação de Senha com token de 30 min], arquivo: "prints/screenshot-2026-10-02_13-01-25.png", altura: 7.2cm),
+)
 
 *Dificuldades e como foram resolvidas.* O desafio consistiu em garantir que requisições originadas no navegador cliente conseguissem consumir as operações de autenticação sem expor o `auth-service` publicamente na internet. A solução foi implementar um cliente HTTP interno no backend do catálogo (`AUTH_SERVICE_URL=http://auth-service:4000`), encaminhando cabeçalhos de autorização e tratando erros de rede com respostas padronizadas, além de validar no frontend a rejeição de links expirados ou já consumidos.
 
@@ -246,7 +260,12 @@ A tabela a seguir consolida o cronograma oficial de entregas do primeiro bimestr
 #pagebreak()
 
 // ---------- ATIVIDADE 4 (Página 2/2) ----------
-#evidencia([Atividade 4 — resultado funcional (moderação de comentários com perfil admin e bloqueio HTTP 403)], arquivo: "prints/atv4-resultado.png", altura: 8.5cm)
+#grid(
+  columns: (1fr, 1fr),
+  gutter: 10pt,
+  evidencia([Moderação de comentários por ADMIN], arquivo: "prints/screenshot-2026-10-02_12-56-02.png", altura: 7.2cm),
+  evidencia([Promoção de usuários para ADMIN], arquivo: "prints/screenshot-2026-10-02_12-56-34.png", altura: 7.2cm),
+)
 
 *Dificuldades e como foram resolvidas.* Um ponto crítico de segurança foi evitar vulnerabilidades de atribuição em massa (*mass assignment*), na qual requisições maliciosas enviadas via cURL ou Postman para o endpoint de cadastro tentassem injetar o atributo `role: "admin"`. Para eliminar esse risco, a rota `POST /api/auth/register` foi blindada no servidor, forçando irrevogavelmente o valor `role = 'usuario'` para todo novo registro e exigindo que qualquer elevação de cargo seja autenticada e disparada exclusivamente pela rota interna protegida de administração.
 
@@ -270,7 +289,7 @@ A tabela a seguir consolida o cronograma oficial de entregas do primeiro bimestr
 #pagebreak()
 
 // ---------- ATIVIDADE 5 (Página 2/2) ----------
-#evidencia([Atividade 5 — resultado funcional (painel de auditoria do log-service com Redis Streams e IPs)], arquivo: "prints/atv5-resultado.png", altura: 8.5cm)
+#evidencia([Atividade 5 — resultado funcional (painel de auditoria do log-service com Redis Streams e IPs de origem)], arquivo: "prints/screenshot-2026-10-02_12-56-49.png", altura: 8.5cm)
 
 *Dificuldades e como foram resolvidas.* Havia a preocupação de que lentidões na escrita de logs de auditoria pudessem degradar o tempo de resposta percebido pelo usuário final no catálogo. Esse problema foi solucionado desacoplando os disparos de log no backend através de chamadas HTTP não-bloqueantes (*fire-and-forget*), protegidas com cláusulas `catch` e timeouts curtos (2 segundos), garantindo que a aplicação permaneça perfeitamente funcional mesmo caso o serviço de logs sofra manutenções.
 
@@ -294,7 +313,7 @@ A tabela a seguir consolida o cronograma oficial de entregas do primeiro bimestr
 #pagebreak()
 
 // ---------- ATIVIDADE 6 (Página 2/2) ----------
-#evidencia([Atividade 6 — resultado funcional (perfil com foto no MinIO, bio, favoritos e verificação de segurança 403)], arquivo: "prints/atv6-resultado.png", altura: 10cm)
+#evidencia([Atividade 6 — resultado funcional (perfil com foto no MinIO, bio, dados e teste de proteção 403)], arquivo: "prints/screenshot-2026-10-02_12-56-18.png", altura: 8.5cm)
 
 *Dificuldades e como foram resolvidas.* Em ambientes de hospedagem compartilhados, a porta padrão `:9000` do MinIO conflitou diretamente com a porta da API do Portainer pré-instalado na máquina. A dificuldade foi resolvida no Docker Compose eliminando a publicação de portas externas no host (`expose: ["9000", "9001"]`) e desenvolvendo uma rota interna de proxy seguro no backend do catálogo (`GET /api/profile/avatar/:fotoKey`), permitindo servir os avatares aos navegadores clientes de forma universal sem qualquer interferência de rede.
 
