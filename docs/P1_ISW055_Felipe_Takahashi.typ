@@ -28,20 +28,16 @@
 #show table: set text(hyphenate: false)
 #show table: set par(justify: false)
 
-#let evidencia(legenda, arquivo: none, altura: auto, largura: auto, pagina: 1) = figure(
+#let evidencia(legenda, arquivo: none, altura: auto, largura: 100%, pagina: 1) = figure(
   if arquivo == none {
     rect(width: 100%, height: 4.5cm, radius: 4pt, stroke: (paint: luma(170), dash: "dashed"))[
       #align(center + horizon)[#text(fill: luma(130), size: 9pt)[Sem imagem]]
     ]
   } else {
-    if altura == auto and largura == auto {
-      image(arquivo, width: 92%, page: pagina)
-    } else if altura != auto and largura != auto {
-      image(arquivo, width: largura, height: altura, page: pagina)
-    } else if altura != auto {
-      image(arquivo, height: altura, page: pagina)
+    if altura == auto {
+      image(arquivo, width: largura, page: pagina, fit: "contain")
     } else {
-      image(arquivo, width: largura, page: pagina)
+      image(arquivo, width: largura, height: altura, page: pagina, fit: "contain")
     }
   },
   kind: image,
@@ -173,17 +169,14 @@ A tabela a seguir consolida o cronograma oficial de entregas do primeiro bimestr
 
 *O que foi feito.* Durante a aula presencial de nivelamento na Fatec, foi construída uma aplicação web monolítica utilizando a linguagem Python com o microframework Flask e motor de templates Jinja2. O sistema teve como propósito gerenciar uma lista de registros telefônicos/contatos, implementando as operações CRUD completas aderentes ao protocolo HTTP e padrões REST: `POST` para novo cadastro, `GET` para listagem de registros ativos, `PUT` para atualização de dados cadastrais e `DELETE` para envio de itens à lixeira lógica (*soft delete*). A arquitetura inicial baseou-se na persistência de dados em arquivo local JSON (`banco.json`) com campos cronológicos de auditoria (`created_at`, `updated_at`, `deleted_at`). Na sequência do aprendizado, a aplicação foi evoluída com container Docker, conexão relacional via PyMySQL, script DDL de criação de tabelas (`schema.sql`) e orquestração no Docker Compose com variáveis de ambiente configuradas para deploy no Portainer.
 
-#evidencia([Atividade 1 — evidência da entrega (repositório lista-de-produtos e timestamp da aula em 07/08/2026)], arquivo: "prints/atv1-entrega.png", altura: 6.8cm)
+#evidencia([Atividade 1 — evidência da entrega (repositório lista-de-produtos e timestamp da aula em 07/08/2026)], arquivo: "prints/atv1-entrega.png", altura: 5.6cm)
 
 #pagebreak()
 
 // ---------- ATIVIDADE 1 (Página 2/2) ----------
-#grid(
-  columns: (1fr, 1fr),
-  gutter: 10pt,
-  evidencia([Lista Telefônica — Contatos Ativos], arquivo: "prints/Lista Telefônica _ Agenda de Contatos.pdf", pagina: 2, altura: 8cm),
-  evidencia([Lista Telefônica — Lixeira (Soft Delete)], arquivo: "prints/Lista Telefônica - Lixeira _ Agenda de Contatos.pdf", pagina: 2, altura: 8cm),
-)
+#evidencia([Lista Telefônica — Contatos Ativos (CRUD)], arquivo: "prints/Lista Telefônica _ Agenda de Contatos.pdf", pagina: 2, altura: 7.2cm)
+
+#evidencia([Lista Telefônica — Lixeira lógica (Soft Delete)], arquivo: "prints/Lista Telefônica - Lixeira _ Agenda de Contatos.pdf", pagina: 2, altura: 5.8cm)
 
 *Dificuldades e como foram resolvidas.* O principal desafio técnico consistiu em modelar a alternância entre itens ativos e itens na lixeira sem incorrer na perda permanente de dados durante a manipulação em JSON. A solução adotada foi a implementação do padrão de *soft delete*, marcando os registros com status `"apagado"` e registrando a data de exclusão, criando endpoints segregados (`/dados` para ativos e `/lixeira` para restauração/hard delete). Essa abordagem simplificou a migração posterior para as tabelas relacionais do MySQL.
 
@@ -202,12 +195,12 @@ A tabela a seguir consolida o cronograma oficial de entregas do primeiro bimestr
 
 *O que foi feito.* Nesta atividade inicial do projeto semestral, foi concebido o Catálogo de Filmes do ator Tom Hanks, integrando dinamicamente a API pública internacional do The Movie Database (TMDB). A aplicação foi estruturada com backend em Node.js/Express e persistência relacional no MariaDB 10.11. O sistema implementou autenticação segura através de JSON Web Tokens (JWT) trafegados em cookies HTTP-only, permitindo a segregação estrita dos dados: cada usuário cadastrado possui sua própria lista privada de filmes favoritos e pode publicar notas e comentários pessoais nos filmes listados. Foi desenvolvido o arquivo `docker-compose.yml` para orquestrar os serviços `catalogo` (porta pública `:3000`) e `mariadb` em rede interna privada. A entrega foi formalizada no repositório público com menção ao professor no README e abertura da Issue \#1 (`entrega da atividade`).
 
-#evidencia([Atividade 2 — evidência da entrega (commit 230de48 e vínculo com a Issue #1 em 20/08/2026)], arquivo: "prints/atv2-entrega.png", altura: 6.8cm)
+#evidencia([Atividade 2 — evidência da entrega (commit 230de48 e vínculo com a Issue #1 em 20/08/2026)], arquivo: "prints/atv2-entrega.png", altura: 5.6cm)
 
 #pagebreak()
 
 // ---------- ATIVIDADE 2 (Página 2/2) ----------
-#evidencia([Atividade 2 — resultado funcional (Catálogo de Filmes com Tom Hanks em execução no navegador)], arquivo: "prints/screenshot-2026-10-02_12-55-47.png", altura: 8.5cm)
+#evidencia([Atividade 2 — resultado funcional (Catálogo de Filmes com Tom Hanks em execução no navegador)], arquivo: "prints/screenshot-2026-10-02_12-55-47.png", altura: 9cm)
 
 *Dificuldades e como foram resolvidas.* Durante o deploy no ambiente do Portainer, foram identificados conflitos gerados por nomes estáticos de containers e vinculação desnecessária de portas do MariaDB diretamente na interface de rede do host. O problema foi sanado com o commit `230de48`, removendo o mapeamento de portas externas no banco de dados e padronizando variáveis de ambiente no Compose, viabilizando a inicialização limpa da stack na porta 3000.
 
@@ -226,17 +219,14 @@ A tabela a seguir consolida o cronograma oficial de entregas do primeiro bimestr
 
 *O que foi feito.* Realizou-se a primeira grande refatoração arquitetural do sistema, desacoplando completamente as responsabilidades de controle de identidade do monólito e criando o `auth-service` como um microsserviço independente em diretório e container próprio. O novo serviço assumiu o ciclo de vida completo de cadastro de usuários com hash criptográfico bcrypt, autenticação com geração de tokens JWT e o fluxo de recuperação de senha ("Esqueci minha senha"). Para isso, foram criados tokens aleatórios seguros de 32 bytes armazenados na tabela `reset_tokens` com validade estrita de 30 minutos e invalidação imediata após o primeiro uso (`usado = TRUE`). A infraestrutura foi orquestrada no Docker Compose com a rede bridge `app-network`: o container `auth-service` opera isolado com `expose: ["4000"]` (sem portas publicadas para o host), enquanto o `catalogo` atua como proxy reverso e gateway de entrada. O fluxo foi comprovado com envio real de e-mails via Mailtrap e registrado detalhadamente na Issue \#2.
 
-#evidencia([Atividade 3 — evidência da entrega (commit 6d5adcb e documentação da Issue #2 em 28/08/2026)], arquivo: "prints/atv3-entrega.png", altura: 6.8cm)
+#evidencia([Atividade 3 — evidência da entrega (commit 6d5adcb e documentação da Issue #2 em 28/08/2026)], arquivo: "prints/atv3-entrega.png", altura: 5.6cm)
 
 #pagebreak()
 
 // ---------- ATIVIDADE 3 (Página 2/2) ----------
-#grid(
-  columns: (1fr, 1fr),
-  gutter: 10pt,
-  evidencia([Tela de Login com auth-service isolado], arquivo: "prints/screenshot-2026-10-02_13-01-16.png", altura: 7.2cm),
-  evidencia([Recuperação de Senha com token de 30 min], arquivo: "prints/screenshot-2026-10-02_13-01-25.png", altura: 7.2cm),
-)
+#evidencia([Tela de Login com auth-service isolado na rede interna], arquivo: "prints/screenshot-2026-10-02_13-01-16.png", altura: 6.8cm)
+
+#evidencia([Recuperação de Senha com link de uso único e validade de 30 min], arquivo: "prints/screenshot-2026-10-02_13-01-25.png", altura: 6.8cm)
 
 *Dificuldades e como foram resolvidas.* O desafio consistiu em garantir que requisições originadas no navegador cliente conseguissem consumir as operações de autenticação sem expor o `auth-service` publicamente na internet. A solução foi implementar um cliente HTTP interno no backend do catálogo (`AUTH_SERVICE_URL=http://auth-service:4000`), encaminhando cabeçalhos de autorização e tratando erros de rede com respostas padronizadas, além de validar no frontend a rejeição de links expirados ou já consumidos.
 
@@ -255,17 +245,14 @@ A tabela a seguir consolida o cronograma oficial de entregas do primeiro bimestr
 
 *O que foi feito.* Implementou-se um sistema completo de Controle de Acesso Baseado em Papéis (RBAC - *Role-Based Access Control*), estruturado em torno de dois níveis hierárquicos: `usuario` (papel padrão atribuído automaticamente aos novos cadastros, com permissão para visualizar o catálogo, gerenciar sua própria lista de favoritos e criar/excluir apenas seus próprios comentários) e `admin` (administrador do sistema com poderes de moderação global de comentários e concessão de privilégios a outros usuários). Foi adotado o padrão arquitetural de *Enforcement Centralizado* (Padrão A), no qual cada operação sensível consulta o papel em tempo real no banco/auth-service, garantindo revogação ou concessão imediata de permissões. O backend rejeita terminantemente requisições não autorizadas com código HTTP `403 Forbidden` (`FORBIDDEN_NOT_ADMIN`). Na interface gráfica (React), foram introduzidos badges visuais (`admin` em dourado e `usuario` em azul), botões contextuais de moderação e o modal administrativo `Promover Admin por E-mail`, tudo documentado na Issue \#3.
 
-#evidencia([Atividade 4 — evidência da entrega (commit e5228cc e submissão da Issue #3 em 04/09/2026)], arquivo: "prints/atv4-entrega.png", altura: 6.8cm)
+#evidencia([Atividade 4 — evidência da entrega (commit e5228cc e submissão da Issue #3 em 04/09/2026)], arquivo: "prints/atv4-entrega.png", altura: 5.6cm)
 
 #pagebreak()
 
 // ---------- ATIVIDADE 4 (Página 2/2) ----------
-#grid(
-  columns: (1fr, 1fr),
-  gutter: 10pt,
-  evidencia([Moderação de comentários por ADMIN], arquivo: "prints/screenshot-2026-10-02_12-56-02.png", altura: 7.2cm),
-  evidencia([Promoção de usuários para ADMIN], arquivo: "prints/screenshot-2026-10-02_12-56-34.png", altura: 7.2cm),
-)
+#evidencia([Moderação de comentários por ADMIN], arquivo: "prints/screenshot-2026-10-02_12-56-02.png", altura: 6.8cm)
+
+#evidencia([Promoção de usuários para ADMIN], arquivo: "prints/screenshot-2026-10-02_12-56-34.png", altura: 6.8cm)
 
 *Dificuldades e como foram resolvidas.* Um ponto crítico de segurança foi evitar vulnerabilidades de atribuição em massa (*mass assignment*), na qual requisições maliciosas enviadas via cURL ou Postman para o endpoint de cadastro tentassem injetar o atributo `role: "admin"`. Para eliminar esse risco, a rota `POST /api/auth/register` foi blindada no servidor, forçando irrevogavelmente o valor `role = 'usuario'` para todo novo registro e exigindo que qualquer elevação de cargo seja autenticada e disparada exclusivamente pela rota interna protegida de administração.
 
@@ -284,12 +271,12 @@ A tabela a seguir consolida o cronograma oficial de entregas do primeiro bimestr
 
 *O que foi feito.* Criação e integração do terceiro microsserviço da arquitetura: o `log-service` (porta interna `:5000`), desenvolvido em Node.js e acoplado a uma instância do banco NoSQL Redis 7 com persistência contínua AOF (*Append-Only File*). O serviço foi projetado para registrar de maneira centralizada e assíncrona todas as trilhas de auditoria da plataforma através de Redis Streams via comando nativo `XADD` sobre a chave `audit:events`. O sistema monitora ativamente operações como login, logout, adição/remoção de favoritos, criação/exclusão de comentários e, criticamente, incidentes de segurança com o evento `acao_negada_403`. Como bônus de rastreabilidade, cada registro captura o endereço IP de origem do cliente e dados contextuais da requisição. Para consulta, foi criada a rota administrativa `GET /api/logs`, restrita ao papel `admin` (com proteção RBAC 403), que lê a stream em ordem cronológica inversa usando `XREVRANGE` e alimenta um modal interativo na interface web. A atividade foi entregue e homologada na Issue \#4 com 15 dias de antecedência.
 
-#evidencia([Atividade 5 — evidência da entrega (commit b024bb0 e Issue #4 entregue com 15 dias de antecedência)], arquivo: "prints/atv5-entrega.png", altura: 6.8cm)
+#evidencia([Atividade 5 — evidência da entrega (commit b024bb0 e Issue #4 entregue com 15 dias de antecedência)], arquivo: "prints/atv5-entrega.png", altura: 5.6cm)
 
 #pagebreak()
 
 // ---------- ATIVIDADE 5 (Página 2/2) ----------
-#evidencia([Atividade 5 — resultado funcional (painel de auditoria do log-service com Redis Streams e IPs de origem)], arquivo: "prints/screenshot-2026-10-02_12-56-49.png", altura: 8.5cm)
+#evidencia([Atividade 5 — resultado funcional (painel de auditoria do log-service com Redis Streams e IPs de origem)], arquivo: "prints/screenshot-2026-10-02_12-56-49.png", altura: 9cm)
 
 *Dificuldades e como foram resolvidas.* Havia a preocupação de que lentidões na escrita de logs de auditoria pudessem degradar o tempo de resposta percebido pelo usuário final no catálogo. Esse problema foi solucionado desacoplando os disparos de log no backend através de chamadas HTTP não-bloqueantes (*fire-and-forget*), protegidas com cláusulas `catch` e timeouts curtos (2 segundos), garantindo que a aplicação permaneça perfeitamente funcional mesmo caso o serviço de logs sofra manutenções.
 
@@ -308,12 +295,12 @@ A tabela a seguir consolida o cronograma oficial de entregas do primeiro bimestr
 
 *O que foi feito.* Implementação da arquitetura de Armazenamento de Objetos (*Object Storage*) compatível com o protocolo AWS S3, introduzindo o container MinIO com volume dedicado `minio-data` e bucket `catalogo-perfil`. Foi desenvolvida a funcionalidade completa de perfil do usuário: upload de avatares com validação rigorosa de mime-type (apenas imagens) e limite máximo de 5MB utilizando a biblioteca Multer; envio do binário diretamente para o MinIO gerando chaves determinísticas de objeto (`avatars/user-ID-timestamp.png`); e persistência relacional leve no MariaDB, que armazena exclusivamente a referência da foto (`foto_key`), o nome e a biografia do usuário. Para a segurança, aplicou-se o princípio da confiança zero: o backend confere o token JWT e bloqueia qualquer tentativa de um usuário consultar e-mails ou alterar o perfil de terceiros com código HTTP `403 Forbidden` (`FORBIDDEN_PROFILE_EDIT`). No README e na Issue \#5 foi documentada uma profunda análise de trade-offs entre buckets de leitura pública versus URLs pré-assinadas com HMAC, acompanhada de 10 testes automatizados aprovados e entrega realizada com 10 dias de antecedência.
 
-#evidencia([Atividade 6 — evidência da entrega (commit cb238c8 e submissão da Issue #5 com 10 dias de antecedência)], arquivo: "prints/atv6-entrega.png", altura: 6.8cm)
+#evidencia([Atividade 6 — evidência da entrega (commit cb238c8 e submissão da Issue #5 com 10 dias de antecedência)], arquivo: "prints/atv6-entrega.png", altura: 5.6cm)
 
 #pagebreak()
 
 // ---------- ATIVIDADE 6 (Página 2/2) ----------
-#evidencia([Atividade 6 — resultado funcional (perfil com foto no MinIO, bio, dados e teste de proteção 403)], arquivo: "prints/screenshot-2026-10-02_12-56-18.png", altura: 8.5cm)
+#evidencia([Atividade 6 — resultado funcional (perfil com foto no MinIO, bio, dados e teste de proteção 403)], arquivo: "prints/screenshot-2026-10-02_12-56-18.png", altura: 9cm)
 
 *Dificuldades e como foram resolvidas.* Em ambientes de hospedagem compartilhados, a porta padrão `:9000` do MinIO conflitou diretamente com a porta da API do Portainer pré-instalado na máquina. A dificuldade foi resolvida no Docker Compose eliminando a publicação de portas externas no host (`expose: ["9000", "9001"]`) e desenvolvendo uma rota interna de proxy seguro no backend do catálogo (`GET /api/profile/avatar/:fotoKey`), permitindo servir os avatares aos navegadores clientes de forma universal sem qualquer interferência de rede.
 
@@ -336,7 +323,7 @@ A tabela a seguir consolida o cronograma oficial de entregas do primeiro bimestr
 
 *O que foi feito.* Implementação de uma esteira robusta de verificação de integridade (*health checks*) distribuída entre os microsserviços do sistema. Foi criado o endpoint mestre `GET /api/health` no catálogo, complementado pelos endpoints `/health` no `auth-service` e no `log-service`. A rota inspeciona ativamente o status da conexão com a base relacional MariaDB executando a query `SELECT 1`, afere a latência e conectividade HTTP interna com o serviço de autenticação, valida a disponibilidade do serviço de logs e verifica a persistência dos streams no Redis. No arquivo `docker-compose.yml`, configurou-se uma checagem periódica nativa para o Redis (`redis-cli ping` a cada 5 segundos), instruindo o `log-service` a depender explicitamente da condição `condition: service_healthy`, garantindo que o cluster inicialize em ordem determinística sem race conditions.
 
-#evidencia([Atividade E3 — evidência da entrega (commit 8bf0461 instrumentando a observabilidade em cascata)], arquivo: "prints/extra-e3-entrega.png", altura: 6.8cm)
+#evidencia([Atividade E3 — evidência da entrega (commit 8bf0461 instrumentando a observabilidade em cascata)], arquivo: "prints/extra-e3-entrega.png", altura: 5.6cm)
 
 #pagebreak()
 
