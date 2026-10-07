@@ -159,13 +159,11 @@ A tabela a seguir consolida o cronograma oficial de entregas do primeiro bimestr
   planejada: "07/08/2026",
   realizada: "07/08/2026 21:00",
   situacao: "entregue",
-  evidencia-desc: "Realizada em sala — print do histórico de arquivos e do sistema web Flask rodando",
+  evidencia-desc: "Realizada em sala — telas do sistema web Flask rodando e relatórios da aplicação",
   url: "https://github.com/Felipe-Takayuki/lista-de-produtos",
 )
 
 *O que foi feito.* Durante a aula presencial de nivelamento na Fatec, foi construída uma aplicação web monolítica utilizando a linguagem Python com o microframework Flask e motor de templates Jinja2. O sistema teve como propósito gerenciar uma lista de registros telefônicos/contatos, implementando as operações CRUD completas aderentes ao protocolo HTTP e padrões REST: `POST` para novo cadastro, `GET` para listagem de registros ativos, `PUT` para atualização de dados cadastrais e `DELETE` para envio de itens à lixeira lógica (*soft delete*). A arquitetura inicial baseou-se na persistência de dados em arquivo local JSON (`banco.json`) com campos cronológicos de auditoria (`created_at`, `updated_at`, `deleted_at`). Na sequência do aprendizado, a aplicação foi evoluída com container Docker, conexão relacional via PyMySQL, script DDL de criação de tabelas (`schema.sql`) e orquestração no Docker Compose com variáveis de ambiente configuradas para deploy no Portainer.
-
-#evidencia([Atividade 1 — evidência da entrega (repositório lista-de-produtos e timestamp da aula em 07/08/2026)], arquivo: "prints/atv1-entrega.png")
 
 #pagebreak()
 
@@ -196,7 +194,7 @@ A tabela a seguir consolida o cronograma oficial de entregas do primeiro bimestr
 
 *O que foi feito.* Nesta atividade inicial do projeto semestral, foi concebido o Catálogo de Filmes do ator Tom Hanks, integrando dinamicamente a API pública internacional do The Movie Database (TMDB). A aplicação foi estruturada com backend em Node.js/Express e persistência relacional no MariaDB 10.11. O sistema implementou autenticação segura através de JSON Web Tokens (JWT) trafegados em cookies HTTP-only, permitindo a segregação estrita dos dados: cada usuário cadastrado possui sua própria lista privada de filmes favoritos e pode publicar notas e comentários pessoais nos filmes listados. Foi desenvolvido o arquivo `docker-compose.yml` para orquestrar os serviços `catalogo` (porta pública `:3000`) e `mariadb` em rede interna privada. A entrega foi formalizada no repositório público com menção ao professor no README e abertura da Issue \#1 (`entrega da atividade`).
 
-#evidencia([Atividade 2 — evidência da entrega (commit 230de48 e vínculo com a Issue #1 em 20/08/2026)], arquivo: "prints/atv2-entrega.png")
+#evidencia([Atividade 2 — evidência da entrega (commit 230de48 e vínculo com a Issue #1 em 20/08/2026)], arquivo: "prints-github/atv2-github.png")
 
 #pagebreak()
 
@@ -219,7 +217,7 @@ A tabela a seguir consolida o cronograma oficial de entregas do primeiro bimestr
 
 *O que foi feito.* Realizou-se a primeira grande refatoração arquitetural do sistema, desacoplando completamente as responsabilidades de controle de identidade do monólito e criando o `auth-service` como um microsserviço independente em diretório e container próprio. O novo serviço assumiu o ciclo de vida completo de cadastro de usuários com hash criptográfico bcrypt, autenticação com geração de tokens JWT e o fluxo de recuperação de senha ("Esqueci minha senha"). Para isso, foram criados tokens aleatórios seguros de 32 bytes armazenados na tabela `reset_tokens` com validade estrita de 30 minutos e invalidação imediata após o primeiro uso (`usado = TRUE`). A infraestrutura foi orquestrada no Docker Compose com a rede bridge `app-network`: o container `auth-service` opera isolado com `expose: ["4000"]` (sem portas publicadas para o host), enquanto o `catalogo` atua como proxy reverso e gateway de entrada. O fluxo foi comprovado com envio real de e-mails via Mailtrap e registrado detalhadamente na Issue \#2.
 
-#evidencia([Atividade 3 — evidência da entrega (commit 6d5adcb e documentação da Issue #2 em 28/08/2026)], arquivo: "prints/atv3-entrega.png")
+#evidencia([Atividade 3 — evidência da entrega (commit 6d5adcb e documentação da Issue #2 em 28/08/2026)], arquivo: "prints-github/atv3-github.png")
 
 #pagebreak()
 
@@ -246,7 +244,7 @@ A tabela a seguir consolida o cronograma oficial de entregas do primeiro bimestr
 
 *O que foi feito.* Implementou-se um sistema completo de Controle de Acesso Baseado em Papéis (RBAC - *Role-Based Access Control*), estruturado em torno de dois níveis hierárquicos: `usuario` (papel padrão atribuído automaticamente aos novos cadastros, com permissão para visualizar o catálogo, gerenciar sua própria lista de favoritos e criar/excluir apenas seus próprios comentários) e `admin` (administrador do sistema com poderes de moderação global de comentários e concessão de privilégios a outros usuários). Foi adotado o padrão arquitetural de *Enforcement Centralizado* (Padrão A), no qual cada operação sensível consulta o papel em tempo real no banco/auth-service, garantindo revogação ou concessão imediata de permissões. O backend rejeita terminantemente requisições não autorizadas com código HTTP `403 Forbidden` (`FORBIDDEN_NOT_ADMIN`). Na interface gráfica (React), foram introduzidos badges visuais (`admin` em dourado e `usuario` em azul), botões contextuais de moderação e o modal administrativo `Promover Admin por E-mail`, tudo documentado na Issue \#3.
 
-#evidencia([Atividade 4 — evidência da entrega (commit e5228cc e submissão da Issue #3 em 04/09/2026)], arquivo: "prints/atv4-entrega.png")
+#evidencia([Atividade 4 — evidência da entrega (commit e5228cc e submissão da Issue #3 em 04/09/2026)], arquivo: "prints-github/atv4-github.png")
 
 #pagebreak()
 
@@ -273,7 +271,7 @@ A tabela a seguir consolida o cronograma oficial de entregas do primeiro bimestr
 
 *O que foi feito.* Criação e integração do terceiro microsserviço da arquitetura: o `log-service` (porta interna `:5000`), desenvolvido em Node.js e acoplado a uma instância do banco NoSQL Redis 7 com persistência contínua AOF (*Append-Only File*). O serviço foi projetado para registrar de maneira centralizada e assíncrona todas as trilhas de auditoria da plataforma através de Redis Streams via comando nativo `XADD` sobre a chave `audit:events`. O sistema monitora ativamente operações como login, logout, adição/remoção de favoritos, criação/exclusão de comentários e, criticamente, incidentes de segurança com o evento `acao_negada_403`. Como bônus de rastreabilidade, cada registro captura o endereço IP de origem do cliente e dados contextuais da requisição. Para consulta, foi criada a rota administrativa `GET /api/logs`, restrita ao papel `admin` (com proteção RBAC 403), que lê a stream em ordem cronológica inversa usando `XREVRANGE` e alimenta um modal interativo na interface web. A atividade foi entregue e homologada na Issue \#4 com 15 dias de antecedência.
 
-#evidencia([Atividade 5 — evidência da entrega (commit b024bb0 e Issue #4 entregue com 15 dias de antecedência)], arquivo: "prints/atv5-entrega.png")
+#evidencia([Atividade 5 — evidência da entrega (commit b024bb0 e Issue #4 entregue com 15 dias de antecedência)], arquivo: "prints-github/atv5-github.png")
 
 #pagebreak()
 
@@ -296,7 +294,7 @@ A tabela a seguir consolida o cronograma oficial de entregas do primeiro bimestr
 
 *O que foi feito.* Implementação da arquitetura de Armazenamento de Objetos (*Object Storage*) compatível com o protocolo AWS S3, introduzindo o container MinIO com volume dedicado `minio-data` e bucket `catalogo-perfil`. Foi desenvolvida a funcionalidade completa de perfil do usuário: upload de avatares com validação rigorosa de mime-type (apenas imagens) e limite máximo de 5MB utilizando a biblioteca Multer; envio do binário diretamente para o MinIO gerando chaves determinísticas de objeto (`avatars/user-ID-timestamp.png`); e persistência relacional leve no MariaDB, que armazena exclusivamente a referência da foto (`foto_key`), o nome e a biografia do usuário. Para a segurança, aplicou-se o princípio da confiança zero: o backend confere o token JWT e bloqueia qualquer tentativa de um usuário consultar e-mails ou alterar o perfil de terceiros com código HTTP `403 Forbidden` (`FORBIDDEN_PROFILE_EDIT`). No README e na Issue \#5 foi documentada uma profunda análise de trade-offs entre buckets de leitura pública versus URLs pré-assinadas com HMAC, acompanhada de 10 testes automatizados aprovados e entrega realizada com 10 dias de antecedência.
 
-#evidencia([Atividade 6 — evidência da entrega (commit cb238c8 e submissão da Issue #5 com 10 dias de antecedência)], arquivo: "prints/atv6-entrega.png")
+#evidencia([Atividade 6 — evidência da entrega (commit cb238c8 e submissão da Issue #5 com 10 dias de antecedência)], arquivo: "prints-github/atv6-github.png")
 
 #pagebreak()
 
@@ -323,7 +321,7 @@ A tabela a seguir consolida o cronograma oficial de entregas do primeiro bimestr
 
 *O que foi feito.* Implementação de uma esteira robusta de verificação de integridade (*health checks*) distribuída entre os microsserviços do sistema. Foi criado o endpoint mestre `GET /api/health` no catálogo, complementado pelos endpoints `/health` no `auth-service` e no `log-service`. A rota inspeciona ativamente o status da conexão com a base relacional MariaDB executando a query `SELECT 1`, afere a latência e conectividade HTTP interna com o serviço de autenticação, valida a disponibilidade do serviço de logs e verifica a persistência dos streams no Redis. No arquivo `docker-compose.yml`, configurou-se uma checagem periódica nativa para o Redis (`redis-cli ping` a cada 5 segundos), instruindo o `log-service` a depender explicitamente da condição `condition: service_healthy`, garantindo que o cluster inicialize em ordem determinística sem race conditions.
 
-#evidencia([Atividade E3 — evidência da entrega (commit 8bf0461 instrumentando a observabilidade em cascata)], arquivo: "prints/extra-e3-entrega.png")
+#evidencia([Atividade E3 — evidência da entrega (commit 8bf0461 instrumentando a observabilidade em cascata)], arquivo: "prints-github/atv-e3-github.png")
 
 #pagebreak()
 
