@@ -1,3 +1,5 @@
+> ⚠️ **Este projeto continua em [github.com/Felipe-Takayuki/metastatistic-cloud](https://github.com/Felipe-Takayuki/metastatistic-cloud)**
+
 # 🎬 Catálogo de Filmes — Tom Hanks (Microsserviços, RBAC, MinIO & Plano Premium com Stripe)
 
 > Atividades Práticas 1, 2, 3, 4, 5, 6 e 7 da disciplina **ISW055 - Introdução à Computação em Nuvem**  
